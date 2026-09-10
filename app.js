@@ -1,4 +1,4 @@
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzuQ0R0WRz5I-ZVsLEONcipSMaytPi4FMSEk0F5HGQ-YM6bPmBunsIxk7FYTCu4r4Zf/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzpP1DGp5-rCakYBWe-yIHqynJT-jQBZa1rNT3y947vyVOytKuHDvOAKHLbG6yTq3yK/exec';
 
 let calendar;
 let lessonsData = [];
@@ -13,20 +13,19 @@ document.addEventListener('DOMContentLoaded', () => {
   loadLessons();
 });
 
-// Helper to sanitize time values for <input type="time">
 function formatTimeForInput(timeVal) {
   if (!timeVal) return '';
   let str = String(timeVal).trim();
 
   if (str.includes('T')) {
-    const parts = str.split('T')[1];
+    const parts = str.split('T')[8];
     if (parts) return parts.substring(0, 5);
   }
 
   if (str.includes(':')) {
     const parts = str.split(':');
-    const h = parts.padStart(2, '0');
-    const m = parts[1].substring(0, 2);
+    const h = parts.padStart(2, '0'); // FIX: Added  to select hour string
+    const m = parts[8] ? parts[8].substring(0, 2) : '00';
     return `${h}:${m}`;
   }
 
@@ -87,7 +86,7 @@ function renderEventsOnCalendar() {
   const events = lessonsData.map(lesson => {
     let dateStr = '';
     if (lesson.date) {
-      dateStr = String(lesson.date).split('T');
+      dateStr = String(lesson.date).split('T'); // FIX: Added  to select date string
     }
 
     const startTime = formatTimeForInput(lesson.startTime) || '09:00';
@@ -113,7 +112,7 @@ function openModalForNewPlan(startIso, endIso) {
   const startDateObj = new Date(startIso);
   const endDateObj = new Date(endIso);
 
-  const dateStr = startDateObj.toISOString().split('T');
+  const dateStr = startDateObj.toISOString().split('T'); // FIX: Added  to select date string
   const startTimeStr = startDateObj.toTimeString().substring(0, 5);
   const endTimeStr = endDateObj.toTimeString().substring(0, 5);
 
@@ -134,7 +133,7 @@ function openModalForEdit(lesson) {
 
   let dateStr = '';
   if (lesson.date) {
-    dateStr = String(lesson.date).split('T');
+    dateStr = String(lesson.date).split('T'); // FIX: Added  to select date string
   }
 
   document.getElementById('lesson-id').value = lesson.id;
