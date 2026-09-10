@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.2] - 2026-09-10
+
+### Added
+- **Half-Staff Flag Widget**: Integrated the national half-staff flag widget from halfstaff.org in a dedicated left sidebar container.
+
+### Changed
+- **Responsive Two-Column Layout**: Updated dashboard layout to a side-by-side flexbox structure featuring a left widget sidebar and a main calendar workspace.
+- **Column Header Alignment**: Restructured header layout per column using an empty spacer block above the widget, aligning the top of the widget container horizontally with the calendar card.
+
 ## [1.0.1] - 2026-09-10
 
 ### Fixed
