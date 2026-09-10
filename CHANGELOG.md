@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.3] - 2026-09-10
+
+### Added
+- **Special Note Row**: Added a custom "Note" row directly above the all-day calendar section for setting daily labels (e.g., "Pajama Day") with click-to-edit prompts and local storage persistence.
+
+### Changed
+- **Weekend Visibility**: Hidden Saturday and Sunday columns (`weekends: false`) to display a focused Monday through Friday workweek schedule.
+- **All-Day Default Hours**: Configured clicks in the "All-Day" time slot area to automatically populate 07:00–15:00 as the default lesson plan start and end times in the modal.
+
 ## [1.0.2] - 2026-09-10
 
 ### Added
