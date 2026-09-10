@@ -1,4 +1,4 @@
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzpP1DGp5-rCakYBWe-yIHqynJT-jQBZa1rNT3y947vyVOytKuHDvOAKHLbG6yTq3yK/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwhvpL3ECYUxIIIzZK8a6ViC5VjkD2O3qmA8Oe3mWr17LA2Zm5cZ8a0bUJz8YuVQXL4/exec';
 
 let calendar;
 let lessonsData = [];
@@ -18,14 +18,14 @@ function formatTimeForInput(timeVal) {
   let str = String(timeVal).trim();
 
   if (str.includes('T')) {
-    const parts = str.split('T')[8];
+    const parts = str.split('T').at(0);
     if (parts) return parts.substring(0, 5);
   }
 
   if (str.includes(':')) {
     const parts = str.split(':');
-    const h = parts.padStart(2, '0'); // FIX: Added  to select hour string
-    const m = parts[8] ? parts[8].substring(0, 2) : '00';
+    const h = parts.at(0).padStart(2, '0');
+    const m = parts.at(1) ? parts.at(1).substring(0, 2) : '00';
     return `${h}:${m}`;
   }
 
@@ -86,7 +86,7 @@ function renderEventsOnCalendar() {
   const events = lessonsData.map(lesson => {
     let dateStr = '';
     if (lesson.date) {
-      dateStr = String(lesson.date).split('T'); // FIX: Added  to select date string
+      dateStr = String(lesson.date).split('T').at(0);
     }
 
     const startTime = formatTimeForInput(lesson.startTime) || '09:00';
@@ -112,7 +112,7 @@ function openModalForNewPlan(startIso, endIso) {
   const startDateObj = new Date(startIso);
   const endDateObj = new Date(endIso);
 
-  const dateStr = startDateObj.toISOString().split('T'); // FIX: Added  to select date string
+  const dateStr = startDateObj.toISOString().split('T').at(0);
   const startTimeStr = startDateObj.toTimeString().substring(0, 5);
   const endTimeStr = endDateObj.toTimeString().substring(0, 5);
 
@@ -133,7 +133,7 @@ function openModalForEdit(lesson) {
 
   let dateStr = '';
   if (lesson.date) {
-    dateStr = String(lesson.date).split('T'); // FIX: Added  to select date string
+    dateStr = String(lesson.date).split('T').at(0);
   }
 
   document.getElementById('lesson-id').value = lesson.id;
