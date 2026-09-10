@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lesson Planner</title>
+  
+  <!-- Tailwind CSS for styling -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- FullCalendar CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+  
+</head>
+<body class="bg-slate-100 text-slate-800 p-6">
+
+  <!-- Header & Sync Status -->
+  <header class="max-w-6xl mx-auto mb-6 flex justify-between items-center">
+    <h1 class="text-2xl font-bold text-slate-900">📚 Lesson Planner</h1>
+    <div id="sync-status" class="text-sm font-medium text-slate-500">
+      Status: Ready
+    </div>
+  </header>
+
+  <!-- Calendar Container -->
+  <main class="max-w-6xl mx-auto bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+    <div id="calendar"></div>
+  </main>
+
+  <!-- Lesson Plan Editor Modal -->
+  <div id="lesson-modal" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 relative max-h-[90vh] overflow-y-auto">
+      <button id="close-modal" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+      
+      <h2 id="modal-title" class="text-xl font-bold mb-4">Lesson Plan</h2>
+      
+      <form id="lesson-form" class="space-y-4">
+        <input type="hidden" id="lesson-id">
+        
+        <div>
+          <label class="block text-sm font-medium text-slate-700">Title</label>
+          <input type="text" id="lesson-title" required class="w-full mt-1 p-2 border rounded-md">
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700">Subject</label>
+            <input type="text" id="lesson-subject" class="w-full mt-1 p-2 border rounded-md">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700">Grade Level</label>
+            <input type="text" id="lesson-grade" class="w-full mt-1 p-2 border rounded-md">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2">
+          <div>
+            <label class="block text-sm font-medium text-slate-700">Date</label>
+            <input type="date" id="lesson-date" required class="w-full mt-1 p-2 border rounded-md">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700">Start Time</label>
+            <input type="time" id="lesson-start" required class="w-full mt-1 p-2 border rounded-md">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700">End Time</label>
+            <input type="time" id="lesson-end" required class="w-full mt-1 p-2 border rounded-md">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-slate-700">Objectives</label>
+          <textarea id="lesson-objectives" rows="2" class="w-full mt-1 p-2 border rounded-md"></textarea>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-slate-700">Procedure / Steps</label>
+          <textarea id="lesson-procedure" rows="3" class="w-full mt-1 p-2 border rounded-md"></textarea>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-slate-700">Assessment</label>
+          <textarea id="lesson-assessment" rows="2" class="w-full mt-1 p-2 border rounded-md"></textarea>
+        </div>
+
+        <div class="flex justify-between items-center pt-4 border-t">
+          <button type="button" id="delete-btn" class="px-4 py-2 bg-red-100 text-red-600 rounded-md hover:bg-red-200 hidden">Delete</button>
+          <div class="flex gap-2 ml-auto">
+            <button type="button" id="cancel-btn" class="px-4 py-2 border rounded-md hover:bg-slate-50">Cancel</button>
+            <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">Save Plan</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
