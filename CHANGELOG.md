@@ -10,11 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.3] - 2026-09-10
 
 ### Added
-- **Special Note Row**: Added a custom "Note" row directly above the all-day calendar section for setting daily labels (e.g., "Pajama Day") with click-to-edit prompts and local storage persistence.
+- **Table-Integrated Special Notes**: Added a custom note row directly inside FullCalendar's header table (`.fc-col-header`) for exact column alignment and support for multiple notes per day.
+- **Custom Tailwind Modals**: Replaced native browser popups (`confirm` / `prompt`) with styled modals for managing daily notes (`#note-modal`) and confirming lesson plan deletions (`#confirm-modal`).
 
 ### Changed
-- **Weekend Visibility**: Hidden Saturday and Sunday columns (`weekends: false`) to display a focused Monday through Friday workweek schedule.
-- **All-Day Default Hours**: Configured clicks in the "All-Day" time slot area to automatically populate 07:00–15:00 as the default lesson plan start and end times in the modal.
+- **Weekend Visibility**: Hidden Saturday and Sunday (`weekends: false`) for a focused Monday–Friday workweek grid.
+- **All-Day Time Range**: Configured clicks in the "All-day" slot area to default to **07:00–15:00** in the lesson plan form.
+- **Axis Styling Parity**: Right-justified "All-day" and "Note" labels using FullCalendar's internal axis cushion classes for 1:1 typography and color matching.
+- **Updated API Endpoint**: Pointed backend connection to the latest Google Apps Script Web App deployment.
 
 ## [1.0.2] - 2026-09-10
 
