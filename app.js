@@ -1,4 +1,4 @@
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx8JhuPXvs0F_7BTpM5BaARs8v4TZhZD3pVgGWqb6ExPmP1fsLoU_ZYI0ep2nECYkHD/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzuQ0R0WRz5I-ZVsLEONcipSMaytPi4FMSEk0F5HGQ-YM6bPmBunsIxk7FYTCu4r4Zf/exec';
 
 let calendar;
 let lessonsData = [];
@@ -12,6 +12,26 @@ document.addEventListener('DOMContentLoaded', () => {
   setupEventListeners();
   loadLessons();
 });
+
+// Helper to sanitize time values for <input type="time">
+function formatTimeForInput(timeVal) {
+  if (!timeVal) return '';
+  let str = String(timeVal).trim();
+
+  if (str.includes('T')) {
+    const parts = str.split('T')[1];
+    if (parts) return parts.substring(0, 5);
+  }
+
+  if (str.includes(':')) {
+    const parts = str.split(':');
+    const h = parts.padStart(2, '0');
+    const m = parts[1].substring(0, 2);
+    return `${h}:${m}`;
+  }
+
+  return str;
+}
 
 function initCalendar() {
   const calendarEl = document.getElementById('calendar');
@@ -65,27 +85,13 @@ function renderEventsOnCalendar() {
   calendar.removeAllEvents();
 
   const events = lessonsData.map(lesson => {
-    // 1. Extract YYYY-MM-DD string
     let dateStr = '';
     if (lesson.date) {
-      dateStr = String(lesson.date).split('T')[0]; // [0] gets strictly the YYYY-MM-DD string
+      dateStr = String(lesson.date).split('T');
     }
 
-    // 2. Clean HH:mm times
-    let startTime = String(lesson.startTime || '09:00');
-    let endTime = String(lesson.endTime || '10:00');
-
-    if (startTime.includes('T')) {
-      startTime = startTime.split('T')[1].substring(0, 5);
-    } else {
-      startTime = startTime.substring(0, 5);
-    }
-
-    if (endTime.includes('T')) {
-      endTime = endTime.split('T')[1].substring(0, 5);
-    } else {
-      endTime = endTime.substring(0, 5);
-    }
+    const startTime = formatTimeForInput(lesson.startTime) || '09:00';
+    const endTime = formatTimeForInput(lesson.endTime) || '10:00';
 
     const startIso = `${dateStr}T${startTime}:00`;
     const endIso = `${dateStr}T${endTime}:00`;
@@ -107,7 +113,7 @@ function openModalForNewPlan(startIso, endIso) {
   const startDateObj = new Date(startIso);
   const endDateObj = new Date(endIso);
 
-  const dateStr = startDateObj.toISOString().split('T')[0];
+  const dateStr = startDateObj.toISOString().split('T');
   const startTimeStr = startDateObj.toTimeString().substring(0, 5);
   const endTimeStr = endDateObj.toTimeString().substring(0, 5);
 
@@ -128,7 +134,7 @@ function openModalForEdit(lesson) {
 
   let dateStr = '';
   if (lesson.date) {
-    dateStr = String(lesson.date).split('T')[0];
+    dateStr = String(lesson.date).split('T');
   }
 
   document.getElementById('lesson-id').value = lesson.id;
@@ -136,8 +142,8 @@ function openModalForEdit(lesson) {
   document.getElementById('lesson-subject').value = lesson.subject || '';
   document.getElementById('lesson-grade').value = lesson.grade || '';
   document.getElementById('lesson-date').value = dateStr;
-  document.getElementById('lesson-start').value = lesson.startTime || '';
-  document.getElementById('lesson-end').value = lesson.endTime || '';
+  document.getElementById('lesson-start').value = formatTimeForInput(lesson.startTime);
+  document.getElementById('lesson-end').value = formatTimeForInput(lesson.endTime);
   document.getElementById('lesson-objectives').value = lesson.objectives || '';
   document.getElementById('lesson-procedure').value = lesson.procedure || '';
   document.getElementById('lesson-assessment').value = lesson.assessment || '';
@@ -174,12 +180,18 @@ function setupEventListeners() {
     updateStatus('Saving to Google Sheets...');
 
     try {
-      await fetch(APPS_SCRIPT_URL, {
+      const response = await fetch(APPS_SCRIPT_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({ action: 'save', payload })
       });
-      await loadLessons();
+      const result = await response.json();
+
+      if (result.status === 'success') {
+        await loadLessons();
+      } else {
+        updateStatus(`Save error: ${result.message}`, true);
+      }
     } catch (err) {
       console.error(err);
       updateStatus('Error saving plan', true);
