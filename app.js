@@ -11,6 +11,13 @@ document.addEventListener('DOMContentLoaded', () => {
     updateStatus('Error: FullCalendar failed to load.', true);
     return;
   }
+
+  const calendarEl = document.getElementById('calendar');
+  if (!calendarEl) {
+    updateStatus('Error: Calendar container not found.', true);
+    return;
+  }
+
   initCalendar();
   setupEventListeners();
   loadLessons();
@@ -158,21 +165,37 @@ function openModalForEdit(lesson) {
 }
 
 function renderMaterialsLinks() {
-  const materialsText = document.getElementById('lesson-materials').value || '';
+  const materialsEl = document.getElementById('lesson-materials');
   const previewContainer = document.getElementById('materials-links-preview');
 
-  // Regex to extract http/https URLs
-  const urlRegex = /(https?:\/\/[^\s]+)/g;
-  const matches = materialsText.match(urlRegex) || [];
+  if (!materialsEl || !previewContainer) return;
 
-  if (matches.length === 0) {
+  const materialsText = materialsEl.value || '';
+
+  // Matches [Title](URL) or raw https:// URLs
+  const markdownRegex = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s]+)/g;
+
+  const links = [];
+  let match;
+
+  while ((match = markdownRegex.exec(materialsText)) !== null) {
+    if (match[1] && match[2]) {
+      links.push({ label: match[1], url: match[2] });
+    } else if (match[3]) {
+      const rawUrl = match[3];
+      const cleanLabel = rawUrl.replace(/^https?:\/\/(www\.)?/, '').substring(0, 30) + '...';
+      links.push({ label: cleanLabel, url: rawUrl });
+    }
+  }
+
+  if (links.length === 0) {
     previewContainer.innerHTML = '';
     return;
   }
 
-  previewContainer.innerHTML = matches.map((url, idx) => {
-    let cleanUrl = escapeHtml(url);
-    let displayLabel = cleanUrl.replace(/^https?:\/\/(www\.)?/, '').substring(0, 30) + '...';
+  previewContainer.innerHTML = links.map(link => {
+    const cleanUrl = escapeHtml(link.url);
+    const displayLabel = escapeHtml(link.label);
     return `
       <a href="${cleanUrl}" target="_blank" rel="noopener noreferrer"
          class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-md text-xs font-semibold hover:bg-indigo-100 transition-colors">
@@ -181,18 +204,22 @@ function renderMaterialsLinks() {
     `;
   }).join('');
 }
-document.getElementById('lesson-materials').addEventListener('input', renderMaterialsLinks);
 
 function setupEventListeners() {
   const modal = document.getElementById('lesson-modal');
   const form = document.getElementById('lesson-form');
+  const materialsInput = document.getElementById('lesson-materials');
 
-  document.getElementById('close-modal').onclick = () => modal.classList.add('hidden');
-  document.getElementById('cancel-btn').onclick = () => modal.classList.add('hidden');
-  document.getElementById('lesson-materials').addEventListener('input', renderMaterialsLinks);
+  const closeModalBtn = document.getElementById('close-modal');
+  const cancelBtn = document.getElementById('cancel-btn');
+
+  if (closeModalBtn) closeModalBtn.onclick = () => modal.classList.add('hidden');
+  if (cancelBtn) cancelBtn.onclick = () => modal.classList.add('hidden');
+  if (materialsInput) materialsInput.addEventListener('input', renderMaterialsLinks);
 
   form.onsubmit = async (e) => {
     e.preventDefault();
+
     const payload = {
       id: document.getElementById('lesson-id').value,
       title: document.getElementById('lesson-title').value,
@@ -217,6 +244,7 @@ function setupEventListeners() {
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({ action: 'save', payload })
       });
+
       const result = await response.json();
       if (result.status === 'success') {
         await loadLessons();
@@ -237,6 +265,7 @@ function setupEventListeners() {
       async () => {
         modal.classList.add('hidden');
         updateStatus('Deleting plan...');
+
         try {
           await fetch(APPS_SCRIPT_URL, {
             method: 'POST',
@@ -268,6 +297,7 @@ function setupEventListeners() {
     e.preventDefault();
     const input = document.getElementById('new-note-input');
     const noteText = input.value.trim();
+
     if (noteText && activeNoteDate) {
       const notes = getNotesForDate(activeNoteDate);
       notes.push(noteText);
@@ -278,6 +308,53 @@ function setupEventListeners() {
       renderSpecialNotesRow();
     }
   };
+
+  // Link Modal Listeners
+  const linkModal = document.getElementById('link-modal');
+  const openLinkModalBtn = document.getElementById('open-link-modal-btn');
+  const closeLinkModalBtn = document.getElementById('close-link-modal');
+  const cancelLinkBtn = document.getElementById('cancel-link-btn');
+  const linkForm = document.getElementById('link-form');
+
+  if (openLinkModalBtn) {
+    openLinkModalBtn.onclick = () => {
+      const materialsTextarea = document.getElementById('lesson-materials');
+      const start = materialsTextarea.selectionStart;
+      const end = materialsTextarea.selectionEnd;
+      const selectedText = materialsTextarea.value.substring(start, end).trim();
+
+      document.getElementById('link-text-input').value = selectedText;
+      document.getElementById('link-url-input').value = '';
+      linkModal.classList.remove('hidden');
+    };
+  }
+
+  const hideLinkModal = () => linkModal.classList.add('hidden');
+
+  if (closeLinkModalBtn) closeLinkModalBtn.onclick = hideLinkModal;
+  if (cancelLinkBtn) cancelLinkBtn.onclick = hideLinkModal;
+
+  if (linkForm) {
+    linkForm.onsubmit = (e) => {
+      e.preventDefault();
+      const label = document.getElementById('link-text-input').value.trim();
+      const url = document.getElementById('link-url-input').value.trim();
+
+      if (label && url) {
+        const materialsTextarea = document.getElementById('lesson-materials');
+        const markdown = `[${label}](${url})`;
+
+        if (materialsTextarea.value.trim().length > 0) {
+          materialsTextarea.value += ` ${markdown}`;
+        } else {
+          materialsTextarea.value = markdown;
+        }
+
+        renderMaterialsLinks();
+        hideLinkModal();
+      }
+    };
+  }
 }
 
 function showConfirmModal(title, message, onConfirm) {
@@ -340,6 +417,10 @@ function deleteNoteAtIndex(index) {
   } else {
     delete specialNotes[activeNoteDate];
   }
+  renderNoteListModal();
+}
+
+function saveSpecialNotes() {
   localStorage.setItem('specialNotes', JSON.stringify(specialNotes));
   renderNoteListModal();
   renderSpecialNotesRow();
