@@ -131,6 +131,8 @@ function openModalForNewPlan(startIso, endIso, isAllDay = false) {
   document.getElementById('lesson-end').value = endTimeStr;
   document.getElementById('delete-btn').classList.add('hidden');
   document.getElementById('lesson-modal').classList.remove('hidden');
+  document.getElementById('lesson-materials').value = '';
+  renderMaterialsLinks();
 }
 
 function openModalForEdit(lesson) {
@@ -151,7 +153,35 @@ function openModalForEdit(lesson) {
   document.getElementById('lesson-assessment').value = lesson.assessment || '';
   document.getElementById('delete-btn').classList.remove('hidden');
   document.getElementById('lesson-modal').classList.remove('hidden');
+  document.getElementById('lesson-materials').value = lesson.materials || '';
+  renderMaterialsLinks();
 }
+
+function renderMaterialsLinks() {
+  const materialsText = document.getElementById('lesson-materials').value || '';
+  const previewContainer = document.getElementById('materials-links-preview');
+
+  // Regex to extract http/https URLs
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const matches = materialsText.match(urlRegex) || [];
+
+  if (matches.length === 0) {
+    previewContainer.innerHTML = '';
+    return;
+  }
+
+  previewContainer.innerHTML = matches.map((url, idx) => {
+    let cleanUrl = escapeHtml(url);
+    let displayLabel = cleanUrl.replace(/^https?:\/\/(www\.)?/, '').substring(0, 30) + '...';
+    return `
+      <a href="${cleanUrl}" target="_blank" rel="noopener noreferrer"
+         class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-md text-xs font-semibold hover:bg-indigo-100 transition-colors">
+        🔗 <span>${displayLabel}</span> ↗
+      </a>
+    `;
+  }).join('');
+}
+document.getElementById('lesson-materials').addEventListener('input', renderMaterialsLinks);
 
 function setupEventListeners() {
   const modal = document.getElementById('lesson-modal');
@@ -159,6 +189,7 @@ function setupEventListeners() {
 
   document.getElementById('close-modal').onclick = () => modal.classList.add('hidden');
   document.getElementById('cancel-btn').onclick = () => modal.classList.add('hidden');
+  document.getElementById('lesson-materials').addEventListener('input', renderMaterialsLinks);
 
   form.onsubmit = async (e) => {
     e.preventDefault();
@@ -173,6 +204,7 @@ function setupEventListeners() {
       objectives: document.getElementById('lesson-objectives').value,
       procedure: document.getElementById('lesson-procedure').value,
       assessment: document.getElementById('lesson-assessment').value,
+      materials: document.getElementById('lesson-materials').value,
       status: 'Scheduled'
     };
 

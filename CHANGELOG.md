@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.4] - 2026-09-10
+
+### Added
+
+- **Materials Field**: Added a dedicated Materials field (`#lesson-materials`) to the lesson plan editor modal in `index.html` to capture required classroom supplies.
+
+### Fixed
+
+- **Materials Persistence**: Updated `app.js` payload handling and `openModalForEdit` form population to save and load the materials field properly alongside Google Sheets header synchronization.
+
 ## [1.0.3] - 2026-09-10
 
 ### Added
