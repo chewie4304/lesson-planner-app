@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [1.1.0] - 2026-09-12
+
+### Added
+- **Lesson Plan Duplication**: Added a "Duplicate" button and multi-date picker inside the lesson plan editor modal, enabling teachers to copy an existing plan to one or more target dates in a single step.
+- **Materials & Hyperlinks Field**: Introduced a dedicated "Materials & Resources" field in the lesson plan form with auto-detection that turns pasted `http://` / `https://` web URLs into clickable badges for 1-click resource opening.
+
+### Fixed
+- **Sheet Headers Integration**: Ensured `materials` payload field maps cleanly to Google Sheets backend storage.
 
 ## [1.0.4] - 2026-09-10
 

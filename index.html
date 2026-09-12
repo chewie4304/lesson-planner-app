@@ -16,21 +16,16 @@
   <!-- Two-Column Main Layout Container -->
   <main class="max-w-7xl mx-auto flex flex-col md:flex-row gap-6 items-start">
 
-    <!-- Left Column: Widget Column (Empty Header + Widget Card) -->
+    <!-- Left Column: Widget Column -->
     <div class="flex-shrink-0 flex flex-col">
-      <!-- Empty Header Placeholder to match header height on right -->
       <div class="mb-6 h-[32px] hidden md:block"></div>
-
-      <!-- Widget Card Container -->
       <aside class="w-fit bg-white p-2 rounded-xl shadow-sm border border-slate-200 flex justify-center">
         <script src="https://halfstaff.org/widgets/us-half-staff-flags.js"></script>
       </aside>
     </div>
 
-    <!-- Right Column: Calendar Column (Header + Calendar Card) -->
+    <!-- Right Column: Calendar Column -->
     <div class="flex-1 min-w-0 w-full flex flex-col">
-
-      <!-- Header over the calendar column -->
       <header class="mb-6 flex justify-between items-center min-h-[32px]">
         <h1 class="text-2xl font-bold text-slate-900">📚 Lesson Planner</h1>
         <div id="sync-status" class="text-sm font-medium text-slate-500">
@@ -38,11 +33,9 @@
         </div>
       </header>
 
-      <!-- Calendar Card Container -->
       <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
         <div id="calendar"></div>
       </div>
-
     </div>
 
   </main>
@@ -53,12 +46,15 @@
       <button id="close-modal"
         class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
       <h2 id="modal-title" class="text-xl font-bold mb-4">Lesson Plan</h2>
+
       <form id="lesson-form" class="space-y-4">
         <input type="hidden" id="lesson-id">
+
         <div>
           <label class="block text-sm font-medium text-slate-700">Title</label>
           <input type="text" id="lesson-title" required class="w-full mt-1 p-2 border rounded-md">
         </div>
+
         <div class="grid grid-cols-2 gap-4">
           <div>
             <label class="block text-sm font-medium text-slate-700">Subject</label>
@@ -69,6 +65,7 @@
             <input type="text" id="lesson-grade" class="w-full mt-1 p-2 border rounded-md">
           </div>
         </div>
+
         <div class="grid grid-cols-3 gap-2">
           <div>
             <label class="block text-sm font-medium text-slate-700">Date</label>
@@ -83,36 +80,57 @@
             <input type="time" id="lesson-end" required class="w-full mt-1 p-2 border rounded-md">
           </div>
         </div>
+
         <div>
           <label class="block text-sm font-medium text-slate-700">Objectives</label>
           <textarea id="lesson-objectives" rows="2" class="w-full mt-1 p-2 border rounded-md"></textarea>
         </div>
-        <div>
-          <div class="flex justify-between items-center">
-            <label class="block text-sm font-medium text-slate-700">Materials & Resources</label>
-            <button type="button" id="open-link-modal-btn"
-              class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 transition-colors">
-              + Add Link
-            </button>
-          </div>
-          <textarea id="lesson-materials" rows="2" placeholder="e.g., Textbooks, Graph paper, or click + Add Link above"
-            class="w-full mt-1 p-2 border rounded-md"></textarea>
-          <div id="materials-links-preview" class="flex flex-wrap gap-2 mt-2"></div>
-        </div>
+
         <div>
           <label class="block text-sm font-medium text-slate-700">Procedure / Steps</label>
           <textarea id="lesson-procedure" rows="3" class="w-full mt-1 p-2 border rounded-md"></textarea>
         </div>
+
         <div>
           <label class="block text-sm font-medium text-slate-700">Assessment</label>
           <textarea id="lesson-assessment" rows="2" class="w-full mt-1 p-2 border rounded-md"></textarea>
         </div>
+
+        <div>
+          <label class="block text-sm font-medium text-slate-700">Materials & Resources</label>
+          <textarea id="lesson-materials" rows="2"
+            placeholder="e.g., Slide deck, Worksheets, https://docs.google.com/..."
+            class="w-full mt-1 p-2 border rounded-md"></textarea>
+          <div id="materials-links-preview" class="flex flex-wrap gap-2 mt-2"></div>
+        </div>
+
+        <!-- NEW: Multi-Date Duplication Panel -->
+        <div id="duplicate-panel" class="hidden p-3 bg-amber-50 border border-amber-200 rounded-md space-y-2">
+          <label class="block text-xs font-bold text-amber-900">Duplicate to Additional Target Date(s):</label>
+          <div class="flex gap-2">
+            <input type="date" id="dup-date-input" class="p-1.5 text-sm border rounded-md bg-white flex-1">
+            <button type="button" id="add-dup-date-btn"
+              class="px-3 py-1.5 text-xs font-semibold bg-amber-600 text-white rounded hover:bg-amber-700">Add
+              Date</button>
+          </div>
+          <div id="dup-dates-list" class="flex flex-wrap gap-1.5 mt-2"></div>
+          <button type="button" id="confirm-dup-btn"
+            class="w-full mt-2 py-1.5 text-xs font-bold bg-amber-600 text-white rounded hover:bg-amber-700 transition-colors">
+            Copy Plan to Selected Target Dates
+          </button>
+        </div>
+
         <div class="flex justify-between items-center pt-4 border-t">
-          <button type="button" id="delete-btn"
-            class="px-4 py-2 bg-red-100 text-red-600 rounded-md hover:bg-red-200 hidden">Delete</button>
+          <div class="flex gap-2">
+            <button type="button" id="delete-btn"
+              class="px-3 py-2 bg-red-100 text-red-600 text-sm rounded-md hover:bg-red-200 hidden">Delete</button>
+            <button type="button" id="duplicate-btn"
+              class="px-3 py-2 bg-amber-100 text-amber-800 text-sm font-medium rounded-md hover:bg-amber-200 hidden">Duplicate</button>
+          </div>
           <div class="flex gap-2 ml-auto">
-            <button type="button" id="cancel-btn" class="px-4 py-2 border rounded-md hover:bg-slate-50">Cancel</button>
-            <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">Save
+            <button type="button" id="cancel-btn"
+              class="px-4 py-2 border text-sm rounded-md hover:bg-slate-50">Cancel</button>
+            <button type="submit" class="px-4 py-2 bg-indigo-600 text-white text-sm rounded-md hover:bg-indigo-700">Save
               Plan</button>
           </div>
         </div>
@@ -120,79 +138,42 @@
     </div>
   </div>
 
-  <!-- Special Notes Management Modal -->
+  <!-- Special Notes Modal -->
   <div id="note-modal" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center p-4 z-50">
     <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6 relative">
       <button id="close-note-modal"
         class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
-      <h2 id="note-modal-title" class="text-xl font-bold mb-1">Special Notes</h2>
-      <p id="note-modal-subtitle" class="text-sm text-slate-500 mb-4"></p>
+      <h3 class="text-lg font-bold text-slate-900">Daily Special Notes</h3>
+      <p id="note-modal-subtitle" class="text-xs text-slate-500 mb-4"></p>
 
-      <!-- Notes List -->
       <div id="note-list" class="space-y-2 mb-4 max-h-48 overflow-y-auto"></div>
 
-      <!-- Add Note Form -->
       <form id="note-form" class="flex gap-2">
-        <input type="text" id="new-note-input" placeholder="Add note (e.g., Pajama Day, Field Trip)..." required
-          class="flex-1 p-2 border rounded-md text-sm">
+        <input type="text" id="new-note-input" required placeholder="Add note (e.g., Substitute, Field Trip)..."
+          class="flex-1 p-2 text-sm border rounded-md">
         <button type="submit"
-          class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700">Add</button>
+          class="px-4 py-2 bg-indigo-600 text-white text-sm rounded-md font-medium hover:bg-indigo-700">Add</button>
       </form>
-
-      <div class="mt-4 pt-3 border-t flex justify-end">
+      <div class="mt-4 pt-3 border-t text-right">
         <button type="button" id="done-note-btn"
-          class="px-4 py-2 border rounded-md text-sm hover:bg-slate-50">Done</button>
+          class="px-4 py-1.5 bg-slate-100 text-slate-700 text-sm rounded-md hover:bg-slate-200">Done</button>
       </div>
     </div>
   </div>
 
-  <!-- Custom Confirmation Modal -->
+  <!-- Delete Confirmation Modal -->
   <div id="confirm-modal" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-xl shadow-xl max-w-sm w-full p-6 relative text-center">
-      <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-3 text-red-600 text-xl">
-        ⚠️
-      </div>
-      <h3 id="confirm-modal-title" class="text-lg font-bold text-slate-900 mb-1">Are you sure?</h3>
-      <p id="confirm-modal-message" class="text-sm text-slate-500 mb-5">This action cannot be undone.</p>
-      <div class="flex justify-center gap-3">
+    <div class="bg-white rounded-xl shadow-xl max-w-sm w-full p-6">
+      <h3 id="confirm-modal-title" class="text-lg font-bold text-slate-900 mb-2"></h3>
+      <p id="confirm-modal-message" class="text-sm text-slate-600 mb-6"></p>
+      <div class="flex justify-end gap-3">
         <button type="button" id="confirm-cancel-btn"
-          class="px-4 py-2 border rounded-md text-sm hover:bg-slate-50 w-full">Cancel</button>
+          class="px-4 py-2 border text-sm rounded-md hover:bg-slate-50">Cancel</button>
         <button type="button" id="confirm-action-btn"
-          class="px-4 py-2 bg-red-600 text-white rounded-md text-sm hover:bg-red-700 w-full">Delete</button>
+          class="px-4 py-2 bg-red-600 text-white text-sm rounded-md hover:bg-red-700 font-medium">Delete</button>
       </div>
     </div>
   </div>
-
-  <!-- Link Creation Modal -->
-  <div id="link-modal" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-xl shadow-xl max-w-sm w-full p-6 relative">
-      <button id="close-link-modal" type="button"
-        class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
-      <h3 class="text-lg font-bold text-slate-900 mb-1">Add Resource Link</h3>
-      <p class="text-xs text-slate-500 mb-4">Create a clickable badge with custom link text.</p>
-
-      <form id="link-form" class="space-y-3">
-        <div>
-          <label class="block text-xs font-medium text-slate-700">Display Text</label>
-          <input type="text" id="link-text-input" placeholder="e.g., Unit 1 Slide Deck" required
-            class="w-full mt-1 p-2 border rounded-md text-sm">
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-slate-700">Destination URL</label>
-          <input type="url" id="link-url-input" placeholder="https://docs.google.com/..." required
-            class="w-full mt-1 p-2 border rounded-md text-sm">
-        </div>
-        <div class="flex justify-end gap-2 pt-3 border-t mt-4">
-          <button type="button" id="cancel-link-btn"
-            class="px-3 py-1.5 border rounded-md text-sm hover:bg-slate-50">Cancel</button>
-          <button type="submit"
-            class="px-3 py-1.5 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700 font-medium">Add
-            Link</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
 
   <script src="app.js"></script>
 </body>
