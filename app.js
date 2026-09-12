@@ -5,6 +5,7 @@ let lessonsData = [];
 let specialNotes = JSON.parse(localStorage.getItem('specialNotes') || '{}');
 let activeNoteDate = null;
 let confirmCallback = null;
+let currentMaterialsLinks = [];
 
 document.addEventListener('DOMContentLoaded', () => {
   if (typeof FullCalendar === 'undefined') {
@@ -47,7 +48,7 @@ function initCalendar() {
   calendar = new FullCalendar.Calendar(calendarEl, {
     initialView: 'timeGridWeek',
     weekends: false,
-    allDayText: 'All-day', // Restored to "All-day"
+    allDayText: 'All-day',
     headerToolbar: {
       left: 'prev,next today',
       center: 'title',
@@ -69,17 +70,20 @@ function initCalendar() {
       }
     }
   });
+
   calendar.render();
   setTimeout(renderSpecialNotesRow, 100);
 }
 
 async function loadLessons() {
   updateStatus('Loading lessons...');
+
   try {
     const response = await fetch(APPS_SCRIPT_URL);
     const result = await response.json();
+
     if (result.status === 'success') {
-      lessonsData = result.data;
+      lessonsData = result.data || [];
       renderEventsOnCalendar();
       updateStatus('All changes synced');
     } else {
@@ -92,42 +96,127 @@ async function loadLessons() {
 }
 
 function renderEventsOnCalendar() {
-  calendar.removeAllEvents();
-  const events = lessonsData.map(lesson => {
-    let dateStr = '';
-    if (lesson.date) {
-      dateStr = String(lesson.date).split('T').at(0);
-    }
+  if (!calendar) return;
+
+  if (typeof calendar.getEventSources === 'function') {
+    calendar.getEventSources().forEach(src => src.remove());
+  } else if (typeof calendar.removeAllEvents === 'function') {
+    calendar.removeAllEvents();
+  }
+
+  const events = [];
+  lessonsData.forEach(lesson => {
+    if (!lesson || !lesson.date) return;
+
+    const dateStr = String(lesson.date).split('T').at(0);
+    if (!dateStr || dateStr.length < 10) return;
+
     const startTime = formatTimeForInput(lesson.startTime) || '09:00';
     const endTime = formatTimeForInput(lesson.endTime) || '10:00';
     const startIso = `${dateStr}T${startTime}:00`;
     const endIso = `${dateStr}T${endTime}:00`;
 
-    return {
-      id: String(lesson.id),
+    events.push({
+      id: String(lesson.id || 'lp_' + Date.now()),
       title: `${lesson.title || 'Untitled'} (${lesson.subject || 'General'})`,
       start: startIso,
       end: endIso,
       backgroundColor: '#4f46e5',
       borderColor: '#4338ca'
-    };
+    });
   });
+
   calendar.addEventSource(events);
 }
 
+function parseMaterials(rawMaterialsStr = '') {
+  currentMaterialsLinks = [];
+  if (!rawMaterialsStr) return '';
+
+  const markdownRegex = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g;
+  const cleanedText = rawMaterialsStr.replace(markdownRegex, (match, label, url) => {
+    currentMaterialsLinks.push({ label, url });
+    return '';
+  });
+
+  const plainUrlRegex = /(https?:\/\/[^\s]+)/g;
+  const finalText = cleanedText.replace(plainUrlRegex, (match, url) => {
+    if (currentMaterialsLinks.some(link => link.url === url)) {
+      return '';
+    }
+
+    currentMaterialsLinks.push({
+      label: url.replace(/^https?:\/\/(www\.)?/, '').substring(0, 30) + (url.length > 30 ? '...' : ''),
+      url
+    });
+    return '';
+  });
+
+  return finalText.replace(/\s+/g, ' ').trim();
+}
+
+function renderMaterialsLinks() {
+  const previewContainer = document.getElementById('materials-links-preview');
+  if (!previewContainer) return;
+
+  if (currentMaterialsLinks.length === 0) {
+    previewContainer.innerHTML = '';
+    return;
+  }
+
+  previewContainer.innerHTML = currentMaterialsLinks.map((link, index) => {
+    const cleanUrl = escapeHtml(link.url);
+    const displayLabel = escapeHtml(link.label);
+    return `
+      <div class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-md text-xs font-semibold hover:bg-indigo-100 transition-colors">
+        <a href="${cleanUrl}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5">
+          🔗 <span>${displayLabel}</span> ↗
+        </a>
+        <button type="button" data-remove-link-index="${index}" class="ml-1 text-indigo-500 hover:text-red-600 font-bold" aria-label="Remove link">×</button>
+      </div>
+    `;
+  }).join('');
+
+  previewContainer.querySelectorAll('[data-remove-link-index]').forEach(button => {
+    button.addEventListener('click', () => {
+      const index = Number(button.getAttribute('data-remove-link-index'));
+      if (!Number.isNaN(index)) {
+        currentMaterialsLinks.splice(index, 1);
+        renderMaterialsLinks();
+      }
+    });
+  });
+}
+
+function getFormattedMaterialsPayload() {
+  const plainText = (document.getElementById('lesson-materials').value || '').trim();
+  const linksText = currentMaterialsLinks.map(link => `[${link.label}](${link.url})`).join(' ');
+
+  if (!plainText && !linksText) return '';
+  if (!plainText) return linksText;
+  if (!linksText) return plainText;
+  return `${plainText} ${linksText}`;
+}
+
 function openModalForNewPlan(startIso, endIso, isAllDay = false) {
-  let dateStr = startIso.split('T').at(0);
+  let dateStr = startIso ? startIso.split('T').at(0) : '';
   let startTimeStr = '09:00';
   let endTimeStr = '10:00';
 
-  if (isAllDay || !startIso.includes('T')) {
+  if (isAllDay || !startIso || !startIso.includes('T')) {
     startTimeStr = '07:00';
     endTimeStr = '15:00';
   } else {
     const startDateObj = new Date(startIso);
     const endDateObj = new Date(endIso);
-    startTimeStr = startDateObj.toTimeString().substring(0, 5);
-    endTimeStr = endDateObj.toTimeString().substring(0, 5);
+
+    if (!isNaN(startDateObj.getTime())) {
+      startTimeStr = startDateObj.toTimeString().substring(0, 5);
+    }
+
+    if (!isNaN(endDateObj.getTime())) {
+      endTimeStr = endDateObj.toTimeString().substring(0, 5);
+    }
   }
 
   document.getElementById('modal-title').innerText = 'New Lesson Plan';
@@ -138,17 +227,21 @@ function openModalForNewPlan(startIso, endIso, isAllDay = false) {
   document.getElementById('lesson-end').value = endTimeStr;
   document.getElementById('delete-btn').classList.add('hidden');
   document.getElementById('lesson-modal').classList.remove('hidden');
+
+  currentMaterialsLinks = [];
   document.getElementById('lesson-materials').value = '';
   renderMaterialsLinks();
 }
 
 function openModalForEdit(lesson) {
   document.getElementById('modal-title').innerText = 'Edit Lesson Plan';
+
   let dateStr = '';
   if (lesson.date) {
     dateStr = String(lesson.date).split('T').at(0);
   }
-  document.getElementById('lesson-id').value = lesson.id;
+
+  document.getElementById('lesson-id').value = lesson.id || '';
   document.getElementById('lesson-title').value = lesson.title || '';
   document.getElementById('lesson-subject').value = lesson.subject || '';
   document.getElementById('lesson-grade').value = lesson.grade || '';
@@ -160,156 +253,127 @@ function openModalForEdit(lesson) {
   document.getElementById('lesson-assessment').value = lesson.assessment || '';
   document.getElementById('delete-btn').classList.remove('hidden');
   document.getElementById('lesson-modal').classList.remove('hidden');
-  document.getElementById('lesson-materials').value = lesson.materials || '';
+
+  const cleanText = parseMaterials(lesson.materials || '');
+  document.getElementById('lesson-materials').value = cleanText;
   renderMaterialsLinks();
-}
-
-function renderMaterialsLinks() {
-  const materialsEl = document.getElementById('lesson-materials');
-  const previewContainer = document.getElementById('materials-links-preview');
-
-  if (!materialsEl || !previewContainer) return;
-
-  const materialsText = materialsEl.value || '';
-
-  // Matches [Title](URL) or raw https:// URLs
-  const markdownRegex = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s]+)/g;
-
-  const links = [];
-  let match;
-
-  while ((match = markdownRegex.exec(materialsText)) !== null) {
-    if (match[1] && match[2]) {
-      links.push({ label: match[1], url: match[2] });
-    } else if (match[3]) {
-      const rawUrl = match[3];
-      const cleanLabel = rawUrl.replace(/^https?:\/\/(www\.)?/, '').substring(0, 30) + '...';
-      links.push({ label: cleanLabel, url: rawUrl });
-    }
-  }
-
-  if (links.length === 0) {
-    previewContainer.innerHTML = '';
-    return;
-  }
-
-  previewContainer.innerHTML = links.map(link => {
-    const cleanUrl = escapeHtml(link.url);
-    const displayLabel = escapeHtml(link.label);
-    return `
-      <a href="${cleanUrl}" target="_blank" rel="noopener noreferrer"
-         class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-md text-xs font-semibold hover:bg-indigo-100 transition-colors">
-        🔗 <span>${displayLabel}</span> ↗
-      </a>
-    `;
-  }).join('');
 }
 
 function setupEventListeners() {
   const modal = document.getElementById('lesson-modal');
   const form = document.getElementById('lesson-form');
-  const materialsInput = document.getElementById('lesson-materials');
-
   const closeModalBtn = document.getElementById('close-modal');
   const cancelBtn = document.getElementById('cancel-btn');
 
   if (closeModalBtn) closeModalBtn.onclick = () => modal.classList.add('hidden');
   if (cancelBtn) cancelBtn.onclick = () => modal.classList.add('hidden');
-  if (materialsInput) materialsInput.addEventListener('input', renderMaterialsLinks);
 
-  form.onsubmit = async (e) => {
-    e.preventDefault();
+  if (form) {
+    form.onsubmit = async (e) => {
+      e.preventDefault();
 
-    const payload = {
-      id: document.getElementById('lesson-id').value,
-      title: document.getElementById('lesson-title').value,
-      subject: document.getElementById('lesson-subject').value,
-      grade: document.getElementById('lesson-grade').value,
-      date: document.getElementById('lesson-date').value,
-      startTime: document.getElementById('lesson-start').value,
-      endTime: document.getElementById('lesson-end').value,
-      objectives: document.getElementById('lesson-objectives').value,
-      procedure: document.getElementById('lesson-procedure').value,
-      assessment: document.getElementById('lesson-assessment').value,
-      materials: document.getElementById('lesson-materials').value,
-      status: 'Scheduled'
-    };
+      const payload = {
+        id: document.getElementById('lesson-id').value,
+        title: document.getElementById('lesson-title').value,
+        subject: document.getElementById('lesson-subject').value,
+        grade: document.getElementById('lesson-grade').value,
+        date: document.getElementById('lesson-date').value,
+        startTime: document.getElementById('lesson-start').value,
+        endTime: document.getElementById('lesson-end').value,
+        objectives: document.getElementById('lesson-objectives').value,
+        procedure: document.getElementById('lesson-procedure').value,
+        assessment: document.getElementById('lesson-assessment').value,
+        materials: getFormattedMaterialsPayload(),
+        status: 'Scheduled'
+      };
 
-    modal.classList.add('hidden');
-    updateStatus('Saving to Google Sheets...');
+      modal.classList.add('hidden');
+      updateStatus('Saving to Google Sheets...');
 
-    try {
-      const response = await fetch(APPS_SCRIPT_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: 'save', payload })
-      });
+      try {
+        const response = await fetch(APPS_SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'save', payload })
+        });
 
-      const result = await response.json();
-      if (result.status === 'success') {
-        await loadLessons();
-      } else {
-        updateStatus(`Save error: ${result.message}`, true);
-      }
-    } catch (err) {
-      console.error(err);
-      updateStatus('Error saving plan', true);
-    }
-  };
-
-  document.getElementById('delete-btn').onclick = () => {
-    const id = document.getElementById('lesson-id').value;
-    showConfirmModal(
-      'Delete Lesson Plan?',
-      'Are you sure you want to delete this lesson plan from your schedule?',
-      async () => {
-        modal.classList.add('hidden');
-        updateStatus('Deleting plan...');
-
-        try {
-          await fetch(APPS_SCRIPT_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            body: JSON.stringify({ action: 'delete', payload: { id } })
-          });
+        const result = await response.json();
+        if (result.status === 'success') {
           await loadLessons();
-        } catch (err) {
-          console.error(err);
-          updateStatus('Error deleting plan', true);
+        } else {
+          updateStatus(`Save error: ${result.message}`, true);
         }
+      } catch (err) {
+        console.error(err);
+        updateStatus('Error saving plan', true);
       }
-    );
-  };
+    };
+  }
 
-  // Confirmation Modal Listeners
-  document.getElementById('confirm-cancel-btn').onclick = hideConfirmModal;
-  document.getElementById('confirm-action-btn').onclick = () => {
-    if (confirmCallback) confirmCallback();
-    hideConfirmModal();
-  };
+  const deleteBtn = document.getElementById('delete-btn');
+  if (deleteBtn) {
+    deleteBtn.onclick = () => {
+      const id = document.getElementById('lesson-id').value;
+      showConfirmModal(
+        'Delete Lesson Plan?',
+        'Are you sure you want to delete this lesson plan from your schedule?',
+        async () => {
+          modal.classList.add('hidden');
+          updateStatus('Deleting plan...');
 
-  // Special Notes Modal Listeners
+          try {
+            await fetch(APPS_SCRIPT_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+              body: JSON.stringify({ action: 'delete', payload: { id } })
+            });
+            await loadLessons();
+          } catch (err) {
+            console.error(err);
+            updateStatus('Error deleting plan', true);
+          }
+        }
+      );
+    };
+  }
+
+  const confirmCancelBtn = document.getElementById('confirm-cancel-btn');
+  if (confirmCancelBtn) confirmCancelBtn.onclick = hideConfirmModal;
+
+  const confirmActionBtn = document.getElementById('confirm-action-btn');
+  if (confirmActionBtn) {
+    confirmActionBtn.onclick = () => {
+      if (confirmCallback) confirmCallback();
+      hideConfirmModal();
+    };
+  }
+
   const noteModal = document.getElementById('note-modal');
-  document.getElementById('close-note-modal').onclick = () => noteModal.classList.add('hidden');
-  document.getElementById('done-note-btn').onclick = () => noteModal.classList.add('hidden');
+  const closeNoteModal = document.getElementById('close-note-modal');
+  const doneNoteBtn = document.getElementById('done-note-btn');
+  const noteForm = document.getElementById('note-form');
 
-  document.getElementById('note-form').onsubmit = (e) => {
-    e.preventDefault();
-    const input = document.getElementById('new-note-input');
-    const noteText = input.value.trim();
+  if (closeNoteModal) closeNoteModal.onclick = () => noteModal.classList.add('hidden');
+  if (doneNoteBtn) doneNoteBtn.onclick = () => noteModal.classList.add('hidden');
 
-    if (noteText && activeNoteDate) {
-      const notes = getNotesForDate(activeNoteDate);
-      notes.push(noteText);
-      specialNotes[activeNoteDate] = notes;
-      localStorage.setItem('specialNotes', JSON.stringify(specialNotes));
-      input.value = '';
-      renderNoteListModal();
-      renderSpecialNotesRow();
-    }
-  };
+  if (noteForm) {
+    noteForm.onsubmit = (e) => {
+      e.preventDefault();
+      const input = document.getElementById('new-note-input');
+      const noteText = input.value.trim();
 
-  // Link Modal Listeners
+      if (noteText && activeNoteDate) {
+        const notes = getNotesForDate(activeNoteDate);
+        notes.push(noteText);
+        specialNotes[activeNoteDate] = notes;
+        localStorage.setItem('specialNotes', JSON.stringify(specialNotes));
+        input.value = '';
+        renderNoteListModal();
+        renderSpecialNotesRow();
+      }
+    };
+  }
+
   const linkModal = document.getElementById('link-modal');
   const openLinkModalBtn = document.getElementById('open-link-modal-btn');
   const closeLinkModalBtn = document.getElementById('close-link-modal');
@@ -319,17 +383,22 @@ function setupEventListeners() {
   if (openLinkModalBtn) {
     openLinkModalBtn.onclick = () => {
       const materialsTextarea = document.getElementById('lesson-materials');
-      const start = materialsTextarea.selectionStart;
-      const end = materialsTextarea.selectionEnd;
-      const selectedText = materialsTextarea.value.substring(start, end).trim();
+      const start = materialsTextarea ? materialsTextarea.selectionStart : 0;
+      const end = materialsTextarea ? materialsTextarea.selectionEnd : 0;
+      const selectedText = materialsTextarea ? materialsTextarea.value.substring(start, end).trim() : '';
 
-      document.getElementById('link-text-input').value = selectedText;
+      document.getElementById('link-text-input').value = selectedText || 'Resource';
       document.getElementById('link-url-input').value = '';
-      linkModal.classList.remove('hidden');
+      if (linkModal) linkModal.classList.remove('hidden');
     };
   }
 
-  const hideLinkModal = () => linkModal.classList.add('hidden');
+  const hideLinkModal = () => {
+    if (linkModal) {
+      linkModal.classList.add('hidden');
+      if (linkForm) linkForm.reset();
+    }
+  };
 
   if (closeLinkModalBtn) closeLinkModalBtn.onclick = hideLinkModal;
   if (cancelLinkBtn) cancelLinkBtn.onclick = hideLinkModal;
@@ -340,19 +409,11 @@ function setupEventListeners() {
       const label = document.getElementById('link-text-input').value.trim();
       const url = document.getElementById('link-url-input').value.trim();
 
-      if (label && url) {
-        const materialsTextarea = document.getElementById('lesson-materials');
-        const markdown = `[${label}](${url})`;
+      if (!label || !url) return;
 
-        if (materialsTextarea.value.trim().length > 0) {
-          materialsTextarea.value += ` ${markdown}`;
-        } else {
-          materialsTextarea.value = markdown;
-        }
-
-        renderMaterialsLinks();
-        hideLinkModal();
-      }
+      currentMaterialsLinks.push({ label, url });
+      renderMaterialsLinks();
+      hideLinkModal();
     };
   }
 }
@@ -371,11 +432,12 @@ function hideConfirmModal() {
 
 function updateStatus(message, isError = false) {
   const statusEl = document.getElementById('sync-status');
+  if (!statusEl) return;
+
   statusEl.innerText = `Status: ${message}`;
   statusEl.className = `text-sm font-medium ${isError ? 'text-red-500' : 'text-slate-500'}`;
 }
 
-// Special Notes Helpers
 function getNotesForDate(dateStr) {
   const val = specialNotes[dateStr];
   if (!val) return [];
@@ -393,10 +455,11 @@ function openNoteModal(dateStr) {
 
 function renderNoteListModal() {
   const container = document.getElementById('note-list');
-  const notes = getNotesForDate(activeNoteDate);
+  if (!container) return;
 
+  const notes = getNotesForDate(activeNoteDate);
   if (notes.length === 0) {
-    container.innerHTML = `<p class="text-xs text-slate-400 italic py-2">No special notes added for this day yet.</p>`;
+    container.innerHTML = '<p class="text-xs text-slate-400 italic py-2">No special notes added for this day yet.</p>';
     return;
   }
 
@@ -410,13 +473,16 @@ function renderNoteListModal() {
 
 function deleteNoteAtIndex(index) {
   if (!activeNoteDate) return;
+
   const notes = getNotesForDate(activeNoteDate);
   notes.splice(index, 1);
+
   if (notes.length > 0) {
     specialNotes[activeNoteDate] = notes;
   } else {
     delete specialNotes[activeNoteDate];
   }
+
   renderNoteListModal();
 }
 
@@ -426,7 +492,6 @@ function saveSpecialNotes() {
   renderSpecialNotesRow();
 }
 
-// Native Table-Integrated Special Notes Row
 function renderSpecialNotesRow() {
   const headerTable = document.querySelector('.fc-col-header');
   if (!headerTable) {
@@ -457,7 +522,6 @@ function renderSpecialNotesRow() {
 
   if (visibleDates.length === 0) return;
 
-  // Right-aligned "Note" label inheriting native FullCalendar cushion styles
   let html = `
     <th class="fc-timegrid-axis fc-scrollgrid-shrink bg-white border-r border-slate-200 text-right">
       <div class="fc-timegrid-axis-frame fc-scrollgrid-shrink-frame flex items-center justify-end pr-2 text-right">
@@ -474,7 +538,7 @@ function renderSpecialNotesRow() {
         <div class="flex flex-wrap gap-1 items-center justify-center min-h-[28px]">
           ${notes.length > 0
         ? notes.map(n => `<span class="px-1.5 py-0.5 bg-amber-100 text-amber-800 border border-amber-300 rounded font-semibold text-[11px] shadow-sm">${escapeHtml(n)}</span>`).join('')
-        : `<span class="text-slate-300 group-hover:text-indigo-600 text-[11px] font-normal">+ Add note</span>`
+        : '<span class="text-slate-300 group-hover:text-indigo-600 text-[11px] font-normal">+ Add note</span>'
       }
         </div>
       </td>
@@ -485,5 +549,10 @@ function renderSpecialNotesRow() {
 }
 
 function escapeHtml(str) {
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
