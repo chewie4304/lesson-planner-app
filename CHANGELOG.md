@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+
+## [1.1.1] - 2026-09-12
+
+### Added
+- **Inline Web Link Manager**: Added an explicit **"+ Add Web Link"** button next to the Materials & Resources label, toggling an inline form to quickly attach titled web links without leaving the main modal.
+- **Interactive Link Badges**: Attached web links display as styled, clickable **🔗 Title ↗** badge buttons directly below the materials text area with individual remove (`×`) controls.
+
+### Changed
+- **Freeform Materials Entry**: Restored direct freeform typing in the Materials & Resources text area for physical supplies (worksheets, graph paper, lab kits) alongside attached web links.
+
 ## [1.1.0] - 2026-09-12
 
 ### Added

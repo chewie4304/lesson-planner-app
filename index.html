@@ -43,7 +43,7 @@
   <!-- Lesson Plan Editor Modal -->
   <div id="lesson-modal" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center p-4 z-50">
     <div class="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 relative max-h-[90vh] overflow-y-auto">
-      <button id="close-modal"
+      <button id="close-modal" type="button"
         class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
       <h2 id="modal-title" class="text-xl font-bold mb-4">Lesson Plan</h2>
 
@@ -96,15 +96,41 @@
           <textarea id="lesson-assessment" rows="2" class="w-full mt-1 p-2 border rounded-md"></textarea>
         </div>
 
+        <!-- Materials Text Field + Add Link Button Section -->
         <div>
-          <label class="block text-sm font-medium text-slate-700">Materials & Resources</label>
-          <textarea id="lesson-materials" rows="2"
-            placeholder="e.g., Slide deck, Worksheets, https://docs.google.com/..."
+          <div class="flex justify-between items-center">
+            <label class="block text-sm font-medium text-slate-700">Materials & Resources</label>
+            <button type="button" id="toggle-add-link-btn"
+              class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1">
+              + Add Web Link
+            </button>
+          </div>
+
+          <textarea id="lesson-materials" rows="2" placeholder="e.g. 25 Worksheets, Graph paper, Lab kits..."
             class="w-full mt-1 p-2 border rounded-md"></textarea>
-          <div id="materials-links-preview" class="flex flex-wrap gap-2 mt-2"></div>
+
+          <!-- Inline Link Adding Box -->
+          <div id="inline-link-box" class="hidden mt-2 p-3 bg-slate-50 border border-slate-200 rounded-md space-y-2">
+            <div class="grid grid-cols-2 gap-2">
+              <input type="text" id="link-title-input" placeholder="Link Title (e.g. Unit 3 Slides)"
+                class="p-2 text-xs border rounded-md bg-white">
+              <input type="url" id="link-url-input" placeholder="URL (https://...)"
+                class="p-2 text-xs border rounded-md bg-white">
+            </div>
+            <div class="flex justify-end gap-2">
+              <button type="button" id="cancel-link-btn"
+                class="px-3 py-1 text-xs border rounded bg-white hover:bg-slate-100">Cancel</button>
+              <button type="button" id="confirm-link-btn"
+                class="px-3 py-1 text-xs font-semibold bg-indigo-600 text-white rounded hover:bg-indigo-700">Add
+                Link</button>
+            </div>
+          </div>
+
+          <!-- Attached Link Badges Container -->
+          <div id="attached-links-container" class="flex flex-wrap gap-2 mt-2"></div>
         </div>
 
-        <!-- NEW: Multi-Date Duplication Panel -->
+        <!-- Multi-Date Duplication Panel -->
         <div id="duplicate-panel" class="hidden p-3 bg-amber-50 border border-amber-200 rounded-md space-y-2">
           <label class="block text-xs font-bold text-amber-900">Duplicate to Additional Target Date(s):</label>
           <div class="flex gap-2">
@@ -141,7 +167,7 @@
   <!-- Special Notes Modal -->
   <div id="note-modal" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center p-4 z-50">
     <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6 relative">
-      <button id="close-note-modal"
+      <button id="close-note-modal" type="button"
         class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
       <h3 class="text-lg font-bold text-slate-900">Daily Special Notes</h3>
       <p id="note-modal-subtitle" class="text-xs text-slate-500 mb-4"></p>

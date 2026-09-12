@@ -6,6 +6,7 @@ let specialNotes = JSON.parse(localStorage.getItem('specialNotes') || '{}');
 let activeNoteDate = null;
 let confirmCallback = null;
 let selectedDupDates = [];
+let attachedLinks = [];
 
 document.addEventListener('DOMContentLoaded', () => {
   if (typeof FullCalendar === 'undefined') {
@@ -109,28 +110,52 @@ function renderEventsOnCalendar() {
   calendar.addEventSource(events);
 }
 
-function renderMaterialsLinks() {
-  const materialsText = document.getElementById('lesson-materials').value || '';
-  const previewContainer = document.getElementById('materials-links-preview');
+// Parse stored materials field into text and links
+function parseMaterialsField(raw) {
+  if (!raw) return { text: '', links: [] };
+  if (typeof raw === 'object') {
+    return { text: raw.text || '', links: Array.isArray(raw.links) ? raw.links : [] };
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object') {
+      if (Array.isArray(parsed)) {
+        return { text: '', links: parsed };
+      }
+      return { text: parsed.text || '', links: Array.isArray(parsed.links) ? parsed.links : [] };
+    }
+  } catch (e) {
+    // If legacy plain text
+    return { text: String(raw), links: [] };
+  }
+  return { text: String(raw), links: [] };
+}
 
-  const urlRegex = /(https?:\/\/[^\s]+)/g;
-  const matches = materialsText.match(urlRegex) || [];
-
-  if (matches.length === 0) {
-    previewContainer.innerHTML = '';
+function renderAttachedLinks() {
+  const container = document.getElementById('attached-links-container');
+  if (attachedLinks.length === 0) {
+    container.innerHTML = '';
     return;
   }
 
-  previewContainer.innerHTML = matches.map((url) => {
-    let cleanUrl = escapeHtml(url);
-    let displayLabel = cleanUrl.replace(/^https?:\/\/(www\.)?/, '').substring(0, 30) + '...';
+  container.innerHTML = attachedLinks.map((item, idx) => {
+    const title = escapeHtml(item.title || 'Link');
+    const url = escapeHtml(item.url || '#');
+
     return `
-      <a href="${cleanUrl}" target="_blank" rel="noopener noreferrer"
-         class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-md text-xs font-semibold hover:bg-indigo-100 transition-colors">
-        🔗 <span>${displayLabel}</span> ↗
-      </a>
+      <div class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-md text-xs font-semibold shadow-sm">
+        <a href="${url}" target="_blank" rel="noopener noreferrer" class="hover:underline flex items-center gap-1">
+          🔗 <span>${title}</span> ↗
+        </a>
+        <button type="button" onclick="removeAttachedLink(${idx})" class="text-indigo-400 hover:text-red-600 font-bold ml-1 text-sm leading-none" title="Remove link">&times;</button>
+      </div>
     `;
   }).join('');
+}
+
+function removeAttachedLink(index) {
+  attachedLinks.splice(index, 1);
+  renderAttachedLinks();
 }
 
 function openModalForNewPlan(startIso, endIso, isAllDay = false) {
@@ -155,7 +180,10 @@ function openModalForNewPlan(startIso, endIso, isAllDay = false) {
   document.getElementById('lesson-start').value = startTimeStr;
   document.getElementById('lesson-end').value = endTimeStr;
   document.getElementById('lesson-materials').value = '';
-  renderMaterialsLinks();
+
+  attachedLinks = [];
+  document.getElementById('inline-link-box').classList.add('hidden');
+  renderAttachedLinks();
 
   selectedDupDates = [];
   renderDupDatesList();
@@ -181,8 +209,13 @@ function openModalForEdit(lesson) {
   document.getElementById('lesson-objectives').value = lesson.objectives || '';
   document.getElementById('lesson-procedure').value = lesson.procedure || '';
   document.getElementById('lesson-assessment').value = lesson.assessment || '';
-  document.getElementById('lesson-materials').value = lesson.materials || '';
-  renderMaterialsLinks();
+
+  const parsedMat = parseMaterialsField(lesson.materials);
+  document.getElementById('lesson-materials').value = parsedMat.text;
+  attachedLinks = parsedMat.links;
+
+  document.getElementById('inline-link-box').classList.add('hidden');
+  renderAttachedLinks();
 
   selectedDupDates = [];
   renderDupDatesList();
@@ -217,7 +250,38 @@ function setupEventListeners() {
 
   document.getElementById('close-modal').onclick = () => modal.classList.add('hidden');
   document.getElementById('cancel-btn').onclick = () => modal.classList.add('hidden');
-  document.getElementById('lesson-materials').addEventListener('input', renderMaterialsLinks);
+
+  // Inline Add Link Listeners
+  const inlineLinkBox = document.getElementById('inline-link-box');
+  document.getElementById('toggle-add-link-btn').onclick = () => {
+    document.getElementById('link-title-input').value = '';
+    document.getElementById('link-url-input').value = '';
+    inlineLinkBox.classList.toggle('hidden');
+  };
+  document.getElementById('cancel-link-btn').onclick = () => inlineLinkBox.classList.add('hidden');
+
+  document.getElementById('confirm-link-btn').onclick = () => {
+    const titleInput = document.getElementById('link-title-input');
+    const urlInput = document.getElementById('link-url-input');
+
+    const titleVal = titleInput.value.trim();
+    let urlVal = urlInput.value.trim();
+
+    if (!titleVal || !urlVal) {
+      alert('Please enter both a link title and a URL.');
+      return;
+    }
+
+    if (!/^https?:\/\//i.test(urlVal)) {
+      urlVal = 'https://' + urlVal;
+    }
+
+    attachedLinks.push({ title: titleVal, url: urlVal });
+    titleInput.value = '';
+    urlInput.value = '';
+    inlineLinkBox.classList.add('hidden');
+    renderAttachedLinks();
+  };
 
   // Toggle Duplication Panel
   document.getElementById('duplicate-btn').onclick = () => {
@@ -243,6 +307,11 @@ function setupEventListeners() {
       return;
     }
 
+    const materialsPayload = JSON.stringify({
+      text: document.getElementById('lesson-materials').value,
+      links: attachedLinks
+    });
+
     const basePayload = {
       title: document.getElementById('lesson-title').value,
       subject: document.getElementById('lesson-subject').value,
@@ -252,7 +321,7 @@ function setupEventListeners() {
       objectives: document.getElementById('lesson-objectives').value,
       procedure: document.getElementById('lesson-procedure').value,
       assessment: document.getElementById('lesson-assessment').value,
-      materials: document.getElementById('lesson-materials').value,
+      materials: materialsPayload,
       status: 'Scheduled'
     };
 
@@ -283,6 +352,12 @@ function setupEventListeners() {
 
   form.onsubmit = async (e) => {
     e.preventDefault();
+
+    const materialsPayload = JSON.stringify({
+      text: document.getElementById('lesson-materials').value,
+      links: attachedLinks
+    });
+
     const payload = {
       id: document.getElementById('lesson-id').value,
       title: document.getElementById('lesson-title').value,
@@ -294,7 +369,7 @@ function setupEventListeners() {
       objectives: document.getElementById('lesson-objectives').value,
       procedure: document.getElementById('lesson-procedure').value,
       assessment: document.getElementById('lesson-assessment').value,
-      materials: document.getElementById('lesson-materials').value,
+      materials: materialsPayload,
       status: 'Scheduled'
     };
 
@@ -493,10 +568,5 @@ function renderSpecialNotesRow() {
 }
 
 function escapeHtml(str) {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
