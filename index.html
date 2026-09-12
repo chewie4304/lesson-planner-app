@@ -130,21 +130,63 @@
           <div id="attached-links-container" class="flex flex-wrap gap-2 mt-2"></div>
         </div>
 
-        <!-- Multi-Date Duplication Panel -->
-        <div id="duplicate-panel" class="hidden p-3 bg-amber-50 border border-amber-200 rounded-md space-y-2">
-          <label class="block text-xs font-bold text-amber-900">Duplicate to Additional Target Date(s):</label>
-          <div class="flex gap-2">
-            <input type="date" id="dup-date-input" class="p-1.5 text-sm border rounded-md bg-white flex-1">
-            <button type="button" id="add-dup-date-btn"
-              class="px-3 py-1.5 text-xs font-semibold bg-amber-600 text-white rounded hover:bg-amber-700">Add
-              Date</button>
+        <!-- Interactive Multi-Date Calendar Duplication Panel -->
+        <div id="duplicate-panel" class="hidden p-3 bg-amber-50 border border-amber-200 rounded-md space-y-3">
+          <div class="flex justify-between items-center">
+            <label class="block text-xs font-bold text-amber-900">Select Target Date(s) on Calendar:</label>
+            <span id="dup-selected-count" class="text-[11px] font-semibold text-amber-700">0 dates selected</span>
           </div>
-          <div id="dup-dates-list" class="flex flex-wrap gap-1.5 mt-2"></div>
+
+          <!-- Mini-Calendar Picker Widget -->
+          <div class="bg-white border border-amber-200 rounded-md p-2 shadow-sm">
+            <div class="flex justify-between items-center mb-2 px-1">
+              <button type="button" id="prev-dup-month-btn"
+                class="text-xs font-bold text-slate-600 hover:text-slate-900 px-2 py-0.5 rounded border hover:bg-slate-100">&larr;
+                Prev</button>
+              <span id="dup-month-title" class="text-xs font-bold text-slate-800"></span>
+              <button type="button" id="next-dup-month-btn"
+                class="text-xs font-bold text-slate-600 hover:text-slate-900 px-2 py-0.5 rounded border hover:bg-slate-100">Next
+                &rarr;</button>
+            </div>
+
+            <!-- Weekday Headers -->
+            <div class="grid grid-cols-7 text-center text-[10px] font-semibold text-slate-400 mb-1">
+              <div>Su</div>
+              <div>Mo</div>
+              <div>Tu</div>
+              <div>We</div>
+              <div>Th</div>
+              <div>Fr</div>
+              <div>Sa</div>
+            </div>
+
+            <!-- Days Grid -->
+            <div id="dup-mini-calendar-days" class="grid grid-cols-7 gap-1 text-center text-xs"></div>
+          </div>
+
+          <!-- Quick Actions: Range & Clear -->
+          <div class="flex items-center justify-between text-[11px] pt-1 border-t border-amber-200">
+            <div class="flex items-center gap-1">
+              <input type="date" id="dup-range-start" class="p-1 text-[11px] border rounded bg-white w-24">
+              <span class="text-amber-800">to</span>
+              <input type="date" id="dup-range-end" class="p-1 text-[11px] border rounded bg-white w-24">
+              <button type="button" id="add-range-btn"
+                class="px-2 py-1 text-xs font-semibold bg-amber-600 text-white rounded hover:bg-amber-700">Add
+                Range</button>
+            </div>
+            <button type="button" id="clear-dup-dates-btn"
+              class="text-amber-700 hover:text-red-600 font-semibold underline">Clear All</button>
+          </div>
+
+          <!-- Selected Target Chips -->
+          <div id="dup-dates-list" class="flex flex-wrap gap-1 max-h-24 overflow-y-auto"></div>
+
           <button type="button" id="confirm-dup-btn"
-            class="w-full mt-2 py-1.5 text-xs font-bold bg-amber-600 text-white rounded hover:bg-amber-700 transition-colors">
+            class="w-full mt-2 py-2 text-xs font-bold bg-amber-600 text-white rounded hover:bg-amber-700 transition-colors shadow-sm">
             Copy Plan to Selected Target Dates
           </button>
         </div>
+
 
         <div class="flex justify-between items-center pt-4 border-t">
           <div class="flex gap-2">

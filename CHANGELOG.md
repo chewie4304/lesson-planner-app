@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.0] - 2026-09-12
+
+### Added
+- **Visual Mini-Calendar Duplication Picker**: Integrated an interactive month-grid calendar inside the duplication panel allowing single-click date toggling across any month.
+- **Month Navigation**: Added month navigation controls (`← Prev` / `Next →`) to easily select target duplication dates across multi-month terms.
+- **Quick Selection Tools**: Retained date range auto-fill alongside single-click calendar pickers with a 1-click "Clear All" action.
+
 ## [1.1.1] - 2026-09-12
 
 ### Added

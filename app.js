@@ -7,6 +7,7 @@ let activeNoteDate = null;
 let confirmCallback = null;
 let selectedDupDates = [];
 let attachedLinks = [];
+let miniCalCurrentDate = new Date();
 
 document.addEventListener('DOMContentLoaded', () => {
   if (typeof FullCalendar === 'undefined') {
@@ -225,6 +226,86 @@ function openModalForEdit(lesson) {
   document.getElementById('lesson-modal').classList.remove('hidden');
 }
 
+function renderMiniCalendar() {
+  const container = document.getElementById('dup-mini-calendar-days');
+  const titleEl = document.getElementById('dup-month-title');
+  if (!container || !titleEl) return;
+
+  const year = miniCalCurrentDate.getFullYear();
+  const month = miniCalCurrentDate.getMonth();
+
+  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  titleEl.innerText = `${monthNames[month]} ${year}`;
+
+  const firstDayIndex = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  let html = '';
+
+  // Blank padding cells before start of month
+  for (let i = 0; i < firstDayIndex; i++) {
+    html += `<div class="p-1"></div>`;
+  }
+
+  // Days of the month
+  for (let day = 1; day <= daysInMonth; day++) {
+    const monthStr = String(month + 1).padStart(2, '0');
+    const dayStr = String(day).padStart(2, '0');
+    const fullDateIso = `${year}-${monthStr}-${dayStr}`;
+
+    const isSelected = selectedDupDates.includes(fullDateIso);
+    const dayOfWeek = new Date(year, month, day).getDay();
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+
+    let bgClasses = isSelected
+      ? 'bg-amber-500 text-white font-bold border-amber-600 shadow-sm'
+      : (isWeekend ? 'bg-slate-50 text-slate-400 border-transparent hover:bg-amber-100' : 'bg-white text-slate-700 border-slate-200 hover:bg-amber-100');
+
+    html += `
+      <button type="button" onclick="toggleDupDate('${fullDateIso}')" 
+              class="p-1 rounded border text-xs text-center transition-colors ${bgClasses}">
+        ${day}
+      </button>
+    `;
+  }
+
+  container.innerHTML = html;
+  document.getElementById('dup-selected-count').innerText = `${selectedDupDates.length} date(s) selected`;
+}
+
+function toggleDupDate(dateStr) {
+  const index = selectedDupDates.indexOf(dateStr);
+  if (index > -1) {
+    selectedDupDates.splice(index, 1);
+  } else {
+    selectedDupDates.push(dateStr);
+  }
+  selectedDupDates.sort();
+  renderMiniCalendar();
+  renderDupDatesList();
+}
+
+// In setupEventListeners():
+document.getElementById('prev-dup-month-btn').onclick = () => {
+  miniCalCurrentDate.setMonth(miniCalCurrentDate.getMonth() - 1);
+  renderMiniCalendar();
+};
+
+document.getElementById('next-dup-month-btn').onclick = () => {
+  miniCalCurrentDate.setMonth(miniCalCurrentDate.getMonth() + 1);
+  renderMiniCalendar();
+};
+
+document.getElementById('clear-dup-dates-btn').onclick = () => {
+  selectedDupDates = [];
+  renderMiniCalendar();
+  renderDupDatesList();
+};
+
+// Inside openModalForEdit / openModalForNewPlan:
+miniCalCurrentDate = new Date();
+renderMiniCalendar();
+
 function renderDupDatesList() {
   const container = document.getElementById('dup-dates-list');
   if (selectedDupDates.length === 0) {
@@ -442,6 +523,48 @@ function setupEventListeners() {
       renderNoteListModal();
       renderSpecialNotesRow();
     }
+  };
+
+  // Add Date Range for Duplication
+  document.getElementById('add-range-btn').onclick = () => {
+    const startVal = document.getElementById('dup-start-range').value;
+    const endVal = document.getElementById('dup-end-range').value;
+    const skipWeekends = document.getElementById('dup-skip-weekends').checked;
+
+    if (!startVal || !endVal) {
+      alert('Please select both a Start Date and an End Date for the range.');
+      return;
+    }
+
+    let current = new Date(startVal + 'T00:00:00');
+    const end = new Date(endVal + 'T00:00:00');
+
+    if (current > end) {
+      alert('Start Date must be before or equal to End Date.');
+      return;
+    }
+
+    let addedCount = 0;
+    while (current <= end) {
+      const dayOfWeek = current.getDay(); // 0 = Sun, 6 = Sat
+      if (!skipWeekends || (dayOfWeek !== 0 && dayOfWeek !== 6)) {
+        const year = current.getFullYear();
+        const month = String(current.getMonth() + 1).padStart(2, '0');
+        const day = String(current.getDate()).padStart(2, '0');
+        const dateStr = `${year}-${month}-${day}`;
+
+        if (!selectedDupDates.includes(dateStr)) {
+          selectedDupDates.push(dateStr);
+          addedCount++;
+        }
+      }
+      current.setDate(current.getDate() + 1);
+    }
+
+    selectedDupDates.sort();
+    document.getElementById('dup-start-range').value = '';
+    document.getElementById('dup-end-range').value = '';
+    renderDupDatesList();
   };
 }
 
