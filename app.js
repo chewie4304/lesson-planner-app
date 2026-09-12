@@ -117,47 +117,91 @@ function renderEventsOnCalendar() {
   calendar.addEventSource(events);
 }
 
-// Helpers for Parsing Stored JSON or Legacy Plain Text
+// Robust JSON Parsing Helper
+function safeJsonParse(raw) {
+  if (!raw) return null;
+  let parsed = raw;
+  try {
+    while (typeof parsed === 'string') {
+      let temp = JSON.parse(parsed);
+      if (temp === parsed) break;
+      parsed = temp;
+    }
+  } catch (e) {
+    return raw;
+  }
+  return parsed;
+}
+
 function parseListField(raw) {
   if (!raw) return [];
-  if (Array.isArray(raw)) return raw;
-  try {
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) return parsed;
-  } catch (e) { }
-  return String(raw).split('\n').map(s => s.trim()).filter(Boolean);
+  const parsed = safeJsonParse(raw);
+  if (Array.isArray(parsed)) return parsed;
+  if (typeof parsed === 'string') {
+    return parsed.split('\n').map(s => s.trim()).filter(Boolean);
+  }
+  return [];
 }
 
 function parseProcedureField(raw) {
   if (!raw) return [];
-  if (Array.isArray(raw)) return raw;
-  try {
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) {
-      return parsed.map(item => typeof item === 'object' ? item : { text: String(item), completed: false });
-    }
-  } catch (e) { }
-  return String(raw).split('\n').map(s => s.trim()).filter(Boolean).map(text => ({ text, completed: false }));
+  const parsed = safeJsonParse(raw);
+  if (Array.isArray(parsed)) {
+    return parsed.map(item => typeof item === 'object' && item !== null ? item : { text: String(item), completed: false });
+  }
+  if (typeof parsed === 'string') {
+    return parsed.split('\n').map(s => s.trim()).filter(Boolean).map(text => ({ text, completed: false }));
+  }
+  return [];
 }
 
 function parseMaterialsField(raw) {
   if (!raw) return { textList: [], links: [] };
-  if (typeof raw === 'object') {
+  const parsed = safeJsonParse(raw);
+  if (parsed && typeof parsed === 'object') {
+    if (Array.isArray(parsed)) {
+      return { textList: parsed.map(String), links: [] };
+    }
     return {
-      textList: Array.isArray(raw.textList) ? raw.textList : (raw.text ? [raw.text] : []),
-      links: Array.isArray(raw.links) ? raw.links : []
+      textList: Array.isArray(parsed.textList) ? parsed.textList : (parsed.text ? [parsed.text] : []),
+      links: Array.isArray(parsed.links) ? parsed.links : []
     };
   }
-  try {
-    const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed === 'object') {
-      return {
-        textList: Array.isArray(parsed.textList) ? parsed.textList : (parsed.text ? [parsed.text] : []),
-        links: Array.isArray(parsed.links) ? parsed.links : []
-      };
-    }
-  } catch (e) { }
-  return { textList: String(raw).split('\n').map(s => s.trim()).filter(Boolean), links: [] };
+  if (typeof parsed === 'string') {
+    return { textList: parsed.split('\n').map(s => s.trim()).filter(Boolean), links: [] };
+  }
+  return { textList: [], links: [] };
+}
+
+// Auto-commit any text typed into inputs before clicking Save or Duplicate
+function commitPendingInputs() {
+  const objInput = document.getElementById('lesson-objectives-input');
+  if (objInput && objInput.value.trim()) {
+    currentObjectives.push(objInput.value.trim());
+    objInput.value = '';
+    renderObjectivesBadges();
+  }
+
+  const assessInput = document.getElementById('lesson-assessment-input');
+  if (assessInput && assessInput.value.trim()) {
+    currentAssessment.push(assessInput.value.trim());
+    assessInput.value = '';
+    renderAssessmentBadges();
+  }
+
+  const matInput = document.getElementById('lesson-materials-input');
+  if (matInput && matInput.value.trim()) {
+    currentMaterialsText.push(matInput.value.trim());
+    matInput.value = '';
+    renderMaterialsBadges();
+  }
+
+  const procInput = document.getElementById('lesson-procedure-input');
+  if (procInput && procInput.value.trim()) {
+    currentProcedure.push({ text: procInput.value.trim(), completed: false });
+    procInput.value = '';
+    renderProcedureChecklist();
+  }
 }
 
 // Render Functions for Reactive Badges
@@ -590,6 +634,8 @@ function setupEventListeners() {
 
   // Confirm Duplication Across All Target Dates
   document.getElementById('confirm-dup-btn').onclick = async () => {
+    commitPendingInputs(); // <-- ADD THIS LINE HERE
+
     if (selectedDupDates.length === 0) {
       alert('Please select at least one target date on the calendar.');
       return;
@@ -635,6 +681,7 @@ function setupEventListeners() {
 
   form.onsubmit = async (e) => {
     e.preventDefault();
+    commitPendingInputs();
 
     const payload = {
       id: document.getElementById('lesson-id').value,

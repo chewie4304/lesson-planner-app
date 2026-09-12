@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.1] - 2026-09-12
+
+### Fixed
+- **Uncommitted Input Capture**: Added `commitPendingInputs()` to auto-commit any text typed into reactive fields (Objectives, Assessment, Materials, Procedure) when clicking **Save Plan** or **Duplicate**, preventing data loss if `Enter` was not pressed.
+- **Resilient JSON Parsing**: Enhanced JSON field parsing (`safeJsonParse`) in `app.js` to cleanly handle nested stringified arrays and preserve legacy data when reopening existing lesson plans.
+
 ## [1.3.0] - 2026-09-12
 
 ### Added
