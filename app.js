@@ -6,8 +6,14 @@ let specialNotes = JSON.parse(localStorage.getItem('specialNotes') || '{}');
 let activeNoteDate = null;
 let confirmCallback = null;
 let selectedDupDates = [];
-let attachedLinks = [];
 let miniCalCurrentDate = new Date();
+
+// Reactive Form Items State
+let currentObjectives = [];
+let currentAssessment = [];
+let currentMaterialsText = [];
+let attachedLinks = [];
+let currentProcedure = []; // [{ text: 'Step...', completed: false }]
 
 document.addEventListener('DOMContentLoaded', () => {
   if (typeof FullCalendar === 'undefined') {
@@ -111,50 +117,162 @@ function renderEventsOnCalendar() {
   calendar.addEventSource(events);
 }
 
+// Helpers for Parsing Stored JSON or Legacy Plain Text
+function parseListField(raw) {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed;
+  } catch (e) { }
+  return String(raw).split('\n').map(s => s.trim()).filter(Boolean);
+}
+
+function parseProcedureField(raw) {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return parsed.map(item => typeof item === 'object' ? item : { text: String(item), completed: false });
+    }
+  } catch (e) { }
+  return String(raw).split('\n').map(s => s.trim()).filter(Boolean).map(text => ({ text, completed: false }));
+}
+
 function parseMaterialsField(raw) {
-  if (!raw) return { text: '', links: [] };
+  if (!raw) return { textList: [], links: [] };
   if (typeof raw === 'object') {
-    return { text: raw.text || '', links: Array.isArray(raw.links) ? raw.links : [] };
+    return {
+      textList: Array.isArray(raw.textList) ? raw.textList : (raw.text ? [raw.text] : []),
+      links: Array.isArray(raw.links) ? raw.links : []
+    };
   }
   try {
     const parsed = JSON.parse(raw);
     if (parsed && typeof parsed === 'object') {
-      if (Array.isArray(parsed)) {
-        return { text: '', links: parsed };
-      }
-      return { text: parsed.text || '', links: Array.isArray(parsed.links) ? parsed.links : [] };
+      return {
+        textList: Array.isArray(parsed.textList) ? parsed.textList : (parsed.text ? [parsed.text] : []),
+        links: Array.isArray(parsed.links) ? parsed.links : []
+      };
     }
-  } catch (e) {
-    return { text: String(raw), links: [] };
-  }
-  return { text: String(raw), links: [] };
+  } catch (e) { }
+  return { textList: String(raw).split('\n').map(s => s.trim()).filter(Boolean), links: [] };
 }
 
-function renderAttachedLinks() {
-  const container = document.getElementById('attached-links-container');
-  if (attachedLinks.length === 0) {
-    container.innerHTML = '';
+// Render Functions for Reactive Badges
+function renderObjectivesBadges() {
+  const container = document.getElementById('objectives-badges-container');
+  if (currentObjectives.length === 0) {
+    container.innerHTML = `<span class="text-xs text-slate-400 italic">No objectives added yet.</span>`;
+    return;
+  }
+  container.innerHTML = currentObjectives.map((obj, idx) => `
+    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-sky-50 text-sky-800 border border-sky-200 rounded-md text-xs font-medium shadow-sm">
+      <span>🎯 ${escapeHtml(obj)}</span>
+      <button type="button" onclick="removeObjectiveItem(${idx})" class="text-sky-400 hover:text-red-600 font-bold text-sm leading-none">&times;</button>
+    </span>
+  `).join('');
+}
+
+function removeObjectiveItem(idx) {
+  currentObjectives.splice(idx, 1);
+  renderObjectivesBadges();
+}
+
+function renderAssessmentBadges() {
+  const container = document.getElementById('assessment-badges-container');
+  if (currentAssessment.length === 0) {
+    container.innerHTML = `<span class="text-xs text-slate-400 italic">No assessment methods added yet.</span>`;
+    return;
+  }
+  container.innerHTML = currentAssessment.map((item, idx) => `
+    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-purple-50 text-purple-800 border border-purple-200 rounded-md text-xs font-medium shadow-sm">
+      <span>📊 ${escapeHtml(item)}</span>
+      <button type="button" onclick="removeAssessmentItem(${idx})" class="text-purple-400 hover:text-red-600 font-bold text-sm leading-none">&times;</button>
+    </span>
+  `).join('');
+}
+
+function removeAssessmentItem(idx) {
+  currentAssessment.splice(idx, 1);
+  renderAssessmentBadges();
+}
+
+function renderMaterialsBadges() {
+  const container = document.getElementById('materials-badges-container');
+  if (currentMaterialsText.length === 0 && attachedLinks.length === 0) {
+    container.innerHTML = `<span class="text-xs text-slate-400 italic">No materials or web links added yet.</span>`;
     return;
   }
 
-  container.innerHTML = attachedLinks.map((item, idx) => {
-    const title = escapeHtml(item.title || 'Link');
-    const url = escapeHtml(item.url || '#');
+  let html = '';
 
-    return `
-      <div class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-md text-xs font-semibold shadow-sm">
-        <a href="${url}" target="_blank" rel="noopener noreferrer" class="hover:underline flex items-center gap-1">
-          🔗 <span>${title}</span> ↗
-        </a>
-        <button type="button" onclick="removeAttachedLink(${idx})" class="text-indigo-400 hover:text-red-600 font-bold ml-1 text-sm leading-none" title="Remove link">&times;</button>
-      </div>
-    `;
-  }).join('');
+  // Render text items
+  html += currentMaterialsText.map((item, idx) => `
+    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-md text-xs font-medium shadow-sm">
+      <span>📦 ${escapeHtml(item)}</span>
+      <button type="button" onclick="removeMaterialTextItem(${idx})" class="text-emerald-400 hover:text-red-600 font-bold text-sm leading-none">&times;</button>
+    </span>
+  `).join('');
+
+  // Render link badges
+  html += attachedLinks.map((item, idx) => `
+    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-md text-xs font-semibold shadow-sm">
+      <a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" class="hover:underline flex items-center gap-1">
+        🔗 <span>${escapeHtml(item.title)}</span> ↗
+      </a>
+      <button type="button" onclick="removeAttachedLink(${idx})" class="text-indigo-400 hover:text-red-600 font-bold text-sm leading-none">&times;</button>
+    </span>
+  `).join('');
+
+  container.innerHTML = html;
 }
 
-function removeAttachedLink(index) {
-  attachedLinks.splice(index, 1);
-  renderAttachedLinks();
+function removeMaterialTextItem(idx) {
+  currentMaterialsText.splice(idx, 1);
+  renderMaterialsBadges();
+}
+
+function removeAttachedLink(idx) {
+  attachedLinks.splice(idx, 1);
+  renderMaterialsBadges();
+}
+
+function renderProcedureChecklist() {
+  const container = document.getElementById('procedure-checklist-container');
+  const countBadge = document.getElementById('procedure-count-badge');
+
+  const completedCount = currentProcedure.filter(p => p.completed).length;
+  countBadge.innerText = `${completedCount}/${currentProcedure.length} completed`;
+
+  if (currentProcedure.length === 0) {
+    container.innerHTML = `<p class="text-xs text-slate-400 italic py-4 text-center border-2 border-dashed border-slate-200 rounded-lg">No procedure steps added yet. Type a step above and press Enter.</p>`;
+    return;
+  }
+
+  container.innerHTML = currentProcedure.map((step, idx) => `
+    <div class="flex items-center justify-between p-2.5 ${step.completed ? 'bg-slate-100/70 border-slate-200' : 'bg-white border-slate-200'} border rounded-md shadow-sm transition-all group">
+      <label class="flex items-start gap-2.5 cursor-pointer min-w-0 flex-1 pr-2">
+        <input type="checkbox" ${step.completed ? 'checked' : ''} onchange="toggleProcedureStep(${idx})"
+               class="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer">
+        <span class="text-xs font-medium ${step.completed ? 'line-through text-slate-400' : 'text-slate-800'} break-words">
+          <span class="font-bold text-slate-400 mr-1">${idx + 1}.</span>${escapeHtml(step.text)}
+        </span>
+      </label>
+      <button type="button" onclick="removeProcedureStep(${idx})" class="text-slate-300 hover:text-red-500 font-bold text-sm px-1 transition-colors" title="Delete step">&times;</button>
+    </div>
+  `).join('');
+}
+
+function toggleProcedureStep(idx) {
+  currentProcedure[idx].completed = !currentProcedure[idx].completed;
+  renderProcedureChecklist();
+}
+
+function removeProcedureStep(idx) {
+  currentProcedure.splice(idx, 1);
+  renderProcedureChecklist();
 }
 
 function renderMiniCalendar() {
@@ -235,11 +353,20 @@ function openModalForNewPlan(startIso, endIso, isAllDay = false) {
   document.getElementById('lesson-date').value = dateStr;
   document.getElementById('lesson-start').value = startTimeStr;
   document.getElementById('lesson-end').value = endTimeStr;
-  document.getElementById('lesson-materials').value = '';
 
+  // Reset Reactive Fields State
+  currentObjectives = [];
+  currentAssessment = [];
+  currentMaterialsText = [];
   attachedLinks = [];
+  currentProcedure = [];
+
+  renderObjectivesBadges();
+  renderAssessmentBadges();
+  renderMaterialsBadges();
+  renderProcedureChecklist();
+
   document.getElementById('inline-link-box').classList.add('hidden');
-  renderAttachedLinks();
 
   selectedDupDates = [];
   miniCalCurrentDate = new Date();
@@ -265,16 +392,22 @@ function openModalForEdit(lesson) {
   document.getElementById('lesson-date').value = dateStr;
   document.getElementById('lesson-start').value = formatTimeForInput(lesson.startTime);
   document.getElementById('lesson-end').value = formatTimeForInput(lesson.endTime);
-  document.getElementById('lesson-objectives').value = lesson.objectives || '';
-  document.getElementById('lesson-procedure').value = lesson.procedure || '';
-  document.getElementById('lesson-assessment').value = lesson.assessment || '';
+
+  // Populate Reactive Items from Saved Lesson Data
+  currentObjectives = parseListField(lesson.objectives);
+  currentAssessment = parseListField(lesson.assessment);
+  currentProcedure = parseProcedureField(lesson.procedure);
 
   const parsedMat = parseMaterialsField(lesson.materials);
-  document.getElementById('lesson-materials').value = parsedMat.text;
+  currentMaterialsText = parsedMat.textList;
   attachedLinks = parsedMat.links;
 
+  renderObjectivesBadges();
+  renderAssessmentBadges();
+  renderMaterialsBadges();
+  renderProcedureChecklist();
+
   document.getElementById('inline-link-box').classList.add('hidden');
-  renderAttachedLinks();
 
   selectedDupDates = [];
   miniCalCurrentDate = new Date();
@@ -314,6 +447,55 @@ function setupEventListeners() {
   document.getElementById('close-modal').onclick = () => modal.classList.add('hidden');
   document.getElementById('cancel-btn').onclick = () => modal.classList.add('hidden');
 
+  // Keydown Listeners for Enter-Key Reactivity
+  document.getElementById('lesson-objectives-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const val = e.target.value.trim();
+      if (val) {
+        currentObjectives.push(val);
+        e.target.value = '';
+        renderObjectivesBadges();
+      }
+    }
+  });
+
+  document.getElementById('lesson-assessment-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const val = e.target.value.trim();
+      if (val) {
+        currentAssessment.push(val);
+        e.target.value = '';
+        renderAssessmentBadges();
+      }
+    }
+  });
+
+  document.getElementById('lesson-materials-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const val = e.target.value.trim();
+      if (val) {
+        currentMaterialsText.push(val);
+        e.target.value = '';
+        renderMaterialsBadges();
+      }
+    }
+  });
+
+  document.getElementById('lesson-procedure-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const val = e.target.value.trim();
+      if (val) {
+        currentProcedure.push({ text: val, completed: false });
+        e.target.value = '';
+        renderProcedureChecklist();
+      }
+    }
+  });
+
   // Inline Add Link Listeners
   const inlineLinkBox = document.getElementById('inline-link-box');
   document.getElementById('toggle-add-link-btn').onclick = () => {
@@ -343,7 +525,7 @@ function setupEventListeners() {
     titleInput.value = '';
     urlInput.value = '';
     inlineLinkBox.classList.add('hidden');
-    renderAttachedLinks();
+    renderMaterialsBadges();
   };
 
   // Mini-Calendar Navigation & Action Listeners
@@ -413,21 +595,16 @@ function setupEventListeners() {
       return;
     }
 
-    const materialsPayload = JSON.stringify({
-      text: document.getElementById('lesson-materials').value,
-      links: attachedLinks
-    });
-
     const basePayload = {
       title: document.getElementById('lesson-title').value,
       subject: document.getElementById('lesson-subject').value,
       grade: document.getElementById('lesson-grade').value,
       startTime: document.getElementById('lesson-start').value,
       endTime: document.getElementById('lesson-end').value,
-      objectives: document.getElementById('lesson-objectives').value,
-      procedure: document.getElementById('lesson-procedure').value,
-      assessment: document.getElementById('lesson-assessment').value,
-      materials: materialsPayload,
+      objectives: JSON.stringify(currentObjectives),
+      procedure: JSON.stringify(currentProcedure),
+      assessment: JSON.stringify(currentAssessment),
+      materials: JSON.stringify({ textList: currentMaterialsText, links: attachedLinks }),
       status: 'Scheduled'
     };
 
@@ -459,11 +636,6 @@ function setupEventListeners() {
   form.onsubmit = async (e) => {
     e.preventDefault();
 
-    const materialsPayload = JSON.stringify({
-      text: document.getElementById('lesson-materials').value,
-      links: attachedLinks
-    });
-
     const payload = {
       id: document.getElementById('lesson-id').value,
       title: document.getElementById('lesson-title').value,
@@ -472,10 +644,10 @@ function setupEventListeners() {
       date: document.getElementById('lesson-date').value,
       startTime: document.getElementById('lesson-start').value,
       endTime: document.getElementById('lesson-end').value,
-      objectives: document.getElementById('lesson-objectives').value,
-      procedure: document.getElementById('lesson-procedure').value,
-      assessment: document.getElementById('lesson-assessment').value,
-      materials: materialsPayload,
+      objectives: JSON.stringify(currentObjectives),
+      procedure: JSON.stringify(currentProcedure),
+      assessment: JSON.stringify(currentAssessment),
+      materials: JSON.stringify({ textList: currentMaterialsText, links: attachedLinks }),
       status: 'Scheduled'
     };
 

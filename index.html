@@ -24,7 +24,7 @@
       </aside>
     </div>
 
-    <!-- Right Column: Calendar Column -->
+    <!-- Right Column: Calendar Workspace -->
     <div class="flex-1 min-w-0 w-full flex flex-col">
       <header class="mb-6 flex justify-between items-center min-h-[32px]">
         <h1 class="text-2xl font-bold text-slate-900">📚 Lesson Planner</h1>
@@ -40,104 +40,146 @@
 
   </main>
 
-  <!-- Lesson Plan Editor Modal -->
+  <!-- Expanded Wide Lesson Plan Editor Modal (max-w-5xl) -->
   <div id="lesson-modal" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 relative max-h-[90vh] overflow-y-auto">
+    <div class="bg-white rounded-xl shadow-xl max-w-5xl w-full p-6 relative max-h-[92vh] overflow-y-auto">
       <button id="close-modal" type="button"
         class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
       <h2 id="modal-title" class="text-xl font-bold mb-4">Lesson Plan</h2>
 
-      <form id="lesson-form" class="space-y-4">
+      <form id="lesson-form" class="space-y-6">
         <input type="hidden" id="lesson-id">
 
-        <div>
-          <label class="block text-sm font-medium text-slate-700">Title</label>
-          <input type="text" id="lesson-title" required class="w-full mt-1 p-2 border rounded-md">
-        </div>
-
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-medium text-slate-700">Subject</label>
-            <input type="text" id="lesson-subject" class="w-full mt-1 p-2 border rounded-md">
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-slate-700">Grade Level</label>
-            <input type="text" id="lesson-grade" class="w-full mt-1 p-2 border rounded-md">
-          </div>
-        </div>
-
-        <div class="grid grid-cols-3 gap-2">
-          <div>
-            <label class="block text-sm font-medium text-slate-700">Date</label>
-            <input type="date" id="lesson-date" required class="w-full mt-1 p-2 border rounded-md">
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-slate-700">Start Time</label>
-            <input type="time" id="lesson-start" required class="w-full mt-1 p-2 border rounded-md">
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-slate-700">End Time</label>
-            <input type="time" id="lesson-end" required class="w-full mt-1 p-2 border rounded-md">
-          </div>
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium text-slate-700">Objectives</label>
-          <textarea id="lesson-objectives" rows="2" class="w-full mt-1 p-2 border rounded-md"></textarea>
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium text-slate-700">Procedure / Steps</label>
-          <textarea id="lesson-procedure" rows="3" class="w-full mt-1 p-2 border rounded-md"></textarea>
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium text-slate-700">Assessment</label>
-          <textarea id="lesson-assessment" rows="2" class="w-full mt-1 p-2 border rounded-md"></textarea>
-        </div>
-
-        <!-- Materials Text Field + Add Link Button Section -->
-        <div>
-          <div class="flex justify-between items-center">
-            <label class="block text-sm font-medium text-slate-700">Materials & Resources</label>
-            <button type="button" id="toggle-add-link-btn"
-              class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1">
-              + Add Web Link
-            </button>
-          </div>
-
-          <textarea id="lesson-materials" rows="2" placeholder="e.g. 25 Worksheets, Graph paper, Lab kits..."
-            class="w-full mt-1 p-2 border rounded-md"></textarea>
-
-          <!-- Inline Link Adding Box -->
-          <div id="inline-link-box" class="hidden mt-2 p-3 bg-slate-50 border border-slate-200 rounded-md space-y-2">
-            <div class="grid grid-cols-2 gap-2">
-              <input type="text" id="link-title-input" placeholder="Link Title (e.g. Unit 3 Slides)"
-                class="p-2 text-xs border rounded-md bg-white">
-              <input type="url" id="link-url-input" placeholder="URL (https://...)"
-                class="p-2 text-xs border rounded-md bg-white">
+        <!-- Top Row: Lesson Title & Metadata Grid -->
+        <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-3">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="md:col-span-2">
+              <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider">Lesson Title</label>
+              <input type="text" id="lesson-title" required placeholder="e.g., Intro to Photosynthesis"
+                class="w-full mt-1 p-2 border rounded-md bg-white text-sm">
             </div>
-            <div class="flex justify-end gap-2">
-              <button type="button" id="cancel-link-btn"
-                class="px-3 py-1 text-xs border rounded bg-white hover:bg-slate-100">Cancel</button>
-              <button type="button" id="confirm-link-btn"
-                class="px-3 py-1 text-xs font-semibold bg-indigo-600 text-white rounded hover:bg-indigo-700">Add
-                Link</button>
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider">Subject</label>
+              <input type="text" id="lesson-subject" placeholder="e.g., Biology"
+                class="w-full mt-1 p-2 border rounded-md bg-white text-sm">
             </div>
           </div>
 
-          <!-- Attached Link Badges Container -->
-          <div id="attached-links-container" class="flex flex-wrap gap-2 mt-2"></div>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider">Grade Level</label>
+              <input type="text" id="lesson-grade" placeholder="e.g., 9th Grade"
+                class="w-full mt-1 p-2 border rounded-md bg-white text-sm">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider">Date</label>
+              <input type="date" id="lesson-date" required class="w-full mt-1 p-2 border rounded-md bg-white text-sm">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider">Start Time</label>
+              <input type="time" id="lesson-start" required class="w-full mt-1 p-2 border rounded-md bg-white text-sm">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider">End Time</label>
+              <input type="time" id="lesson-end" required class="w-full mt-1 p-2 border rounded-md bg-white text-sm">
+            </div>
+          </div>
+        </div>
+
+        <!-- Main 2-Column Content Layout -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+
+          <!-- Left Column: Objectives, Assessment, Materials -->
+          <div class="space-y-5">
+
+            <!-- Objectives Section -->
+            <div class="bg-white p-3.5 border border-slate-200 rounded-lg shadow-sm">
+              <div class="flex justify-between items-center mb-1">
+                <label class="block text-sm font-semibold text-slate-800">🎯 Learning Objectives</label>
+                <span class="text-[11px] text-slate-400">Press Enter to add</span>
+              </div>
+              <input type="text" id="lesson-objectives-input" placeholder="Type an objective and press Enter..."
+                class="w-full p-2 text-sm border rounded-md">
+              <div id="objectives-badges-container" class="flex flex-wrap gap-1.5 mt-2"></div>
+            </div>
+
+            <!-- Assessment Section -->
+            <div class="bg-white p-3.5 border border-slate-200 rounded-lg shadow-sm">
+              <div class="flex justify-between items-center mb-1">
+                <label class="block text-sm font-semibold text-slate-800">📊 Assessment & Checks</label>
+                <span class="text-[11px] text-slate-400">Press Enter to add</span>
+              </div>
+              <input type="text" id="lesson-assessment-input" placeholder="Type an assessment method and press Enter..."
+                class="w-full p-2 text-sm border rounded-md">
+              <div id="assessment-badges-container" class="flex flex-wrap gap-1.5 mt-2"></div>
+            </div>
+
+            <!-- Materials & Links Section -->
+            <div class="bg-white p-3.5 border border-slate-200 rounded-lg shadow-sm">
+              <div class="flex justify-between items-center mb-1">
+                <label class="block text-sm font-semibold text-slate-800">📦 Materials & Resources</label>
+                <button type="button" id="toggle-add-link-btn"
+                  class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1">
+                  + Add Web Link
+                </button>
+              </div>
+              <input type="text" id="lesson-materials-input" placeholder="Type a material/item and press Enter..."
+                class="w-full p-2 text-sm border rounded-md">
+
+              <!-- Inline Link Adding Form -->
+              <div id="inline-link-box"
+                class="hidden mt-2 p-3 bg-slate-50 border border-slate-200 rounded-md space-y-2">
+                <div class="grid grid-cols-2 gap-2">
+                  <input type="text" id="link-title-input" placeholder="Link Title (e.g. Unit 3 Slides)"
+                    class="p-2 text-xs border rounded-md bg-white">
+                  <input type="url" id="link-url-input" placeholder="URL (https://...)"
+                    class="p-2 text-xs border rounded-md bg-white">
+                </div>
+                <div class="flex justify-end gap-2">
+                  <button type="button" id="cancel-link-btn"
+                    class="px-3 py-1 text-xs border rounded bg-white hover:bg-slate-100">Cancel</button>
+                  <button type="button" id="confirm-link-btn"
+                    class="px-3 py-1 text-xs font-semibold bg-indigo-600 text-white rounded hover:bg-indigo-700">Add
+                    Link</button>
+                </div>
+              </div>
+
+              <!-- Materials & Links Badges Container -->
+              <div id="materials-badges-container" class="flex flex-wrap gap-1.5 mt-2"></div>
+            </div>
+
+          </div>
+
+          <!-- Right Column: Interactive Procedure / Steps Checklist -->
+          <div
+            class="bg-white p-4 border border-slate-200 rounded-lg shadow-sm space-y-3 flex flex-col h-full min-h-[380px]">
+            <div class="flex justify-between items-center">
+              <div>
+                <label class="block text-sm font-semibold text-slate-800">📝 Lesson Procedure & Steps</label>
+                <p class="text-[11px] text-slate-400">Press Enter to add steps. Check boxes to mark completion during
+                  class.</p>
+              </div>
+              <span id="procedure-count-badge"
+                class="text-[11px] font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">0
+                steps</span>
+            </div>
+
+            <input type="text" id="lesson-procedure-input" placeholder="Type next step and press Enter..."
+              class="w-full p-2 text-sm border rounded-md">
+
+            <!-- Interactive Step Checklist Container -->
+            <div id="procedure-checklist-container" class="space-y-2 flex-1 overflow-y-auto max-h-[340px] pt-1"></div>
+          </div>
+
         </div>
 
         <!-- Interactive Multi-Date Calendar Duplication Panel -->
-        <div id="duplicate-panel" class="hidden p-3 bg-amber-50 border border-amber-200 rounded-md space-y-3">
+        <div id="duplicate-panel" class="hidden p-3.5 bg-amber-50 border border-amber-200 rounded-lg space-y-3">
           <div class="flex justify-between items-center">
             <label class="block text-xs font-bold text-amber-900">Select Target Date(s) on Calendar:</label>
             <span id="dup-selected-count" class="text-[11px] font-semibold text-amber-700">0 dates selected</span>
           </div>
 
-          <!-- Mini-Calendar Picker Widget -->
           <div class="bg-white border border-amber-200 rounded-md p-2 shadow-sm">
             <div class="flex justify-between items-center mb-2 px-1">
               <button type="button" id="prev-dup-month-btn"
@@ -149,7 +191,6 @@
                 &rarr;</button>
             </div>
 
-            <!-- Weekday Headers -->
             <div class="grid grid-cols-7 text-center text-[10px] font-semibold text-slate-400 mb-1">
               <div>Su</div>
               <div>Mo</div>
@@ -159,17 +200,14 @@
               <div>Fr</div>
               <div>Sa</div>
             </div>
-
-            <!-- Days Grid -->
             <div id="dup-mini-calendar-days" class="grid grid-cols-7 gap-1 text-center text-xs"></div>
           </div>
 
-          <!-- Quick Actions: Range & Clear -->
           <div class="flex items-center justify-between text-[11px] pt-1 border-t border-amber-200">
             <div class="flex items-center gap-1">
-              <input type="date" id="dup-range-start" class="p-1 text-[11px] border rounded bg-white w-24">
+              <input type="date" id="dup-range-start" class="p-1 text-[11px] border rounded bg-white w-28">
               <span class="text-amber-800">to</span>
-              <input type="date" id="dup-range-end" class="p-1 text-[11px] border rounded bg-white w-24">
+              <input type="date" id="dup-range-end" class="p-1 text-[11px] border rounded bg-white w-28">
               <button type="button" id="add-range-btn"
                 class="px-2 py-1 text-xs font-semibold bg-amber-600 text-white rounded hover:bg-amber-700">Add
                 Range</button>
@@ -178,7 +216,6 @@
               class="text-amber-700 hover:text-red-600 font-semibold underline">Clear All</button>
           </div>
 
-          <!-- Selected Target Chips -->
           <div id="dup-dates-list" class="flex flex-wrap gap-1 max-h-24 overflow-y-auto"></div>
 
           <button type="button" id="confirm-dup-btn"
@@ -187,18 +224,19 @@
           </button>
         </div>
 
-
+        <!-- Footer Actions Bar -->
         <div class="flex justify-between items-center pt-4 border-t">
           <div class="flex gap-2">
             <button type="button" id="delete-btn"
-              class="px-3 py-2 bg-red-100 text-red-600 text-sm rounded-md hover:bg-red-200 hidden">Delete</button>
+              class="px-3 py-2 bg-red-100 text-red-600 text-sm font-medium rounded-md hover:bg-red-200 hidden">Delete</button>
             <button type="button" id="duplicate-btn"
               class="px-3 py-2 bg-amber-100 text-amber-800 text-sm font-medium rounded-md hover:bg-amber-200 hidden">Duplicate</button>
           </div>
           <div class="flex gap-2 ml-auto">
             <button type="button" id="cancel-btn"
-              class="px-4 py-2 border text-sm rounded-md hover:bg-slate-50">Cancel</button>
-            <button type="submit" class="px-4 py-2 bg-indigo-600 text-white text-sm rounded-md hover:bg-indigo-700">Save
+              class="px-4 py-2 border text-sm rounded-md hover:bg-slate-50 font-medium">Cancel</button>
+            <button type="submit"
+              class="px-5 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-md hover:bg-indigo-700 shadow-sm">Save
               Plan</button>
           </div>
         </div>
@@ -206,7 +244,7 @@
     </div>
   </div>
 
-  <!-- Special Notes Modal -->
+  <!-- Daily Special Notes Modal -->
   <div id="note-modal" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center p-4 z-50">
     <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6 relative">
       <button id="close-note-modal" type="button"

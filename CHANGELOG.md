@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.0] - 2026-09-12
+
+### Added
+- **Wide 2-Column Modal Layout**: Expanded the lesson plan editor modal (`#lesson-modal`) to a spacious `max-w-5xl` container with a top metadata bar and side-by-side content columns.
+- **Reactive Enter-Key Badges**: Added `Enter`-key listeners across Objectives, Assessments, and Materials fields that clear input on enter and append items as styled badges.
+- **Interactive Procedure Checklist**: Transformed the Procedure field into an interactive step-by-step checklist complete with completion checkboxes, progress counter (`X/Y completed`), and strike-through styling.
+
 ## [1.2.0] - 2026-09-12
 
 ### Added
