@@ -111,7 +111,6 @@ function renderEventsOnCalendar() {
   calendar.addEventSource(events);
 }
 
-// Parse stored materials field into text and links
 function parseMaterialsField(raw) {
   if (!raw) return { text: '', links: [] };
   if (typeof raw === 'object') {
@@ -126,7 +125,6 @@ function parseMaterialsField(raw) {
       return { text: parsed.text || '', links: Array.isArray(parsed.links) ? parsed.links : [] };
     }
   } catch (e) {
-    // If legacy plain text
     return { text: String(raw), links: [] };
   }
   return { text: String(raw), links: [] };
@@ -159,73 +157,6 @@ function removeAttachedLink(index) {
   renderAttachedLinks();
 }
 
-function openModalForNewPlan(startIso, endIso, isAllDay = false) {
-  let dateStr = startIso.split('T').at(0);
-  let startTimeStr = '09:00';
-  let endTimeStr = '10:00';
-
-  if (isAllDay || !startIso.includes('T')) {
-    startTimeStr = '07:00';
-    endTimeStr = '15:00';
-  } else {
-    const startDateObj = new Date(startIso);
-    const endDateObj = new Date(endIso);
-    startTimeStr = startDateObj.toTimeString().substring(0, 5);
-    endTimeStr = endDateObj.toTimeString().substring(0, 5);
-  }
-
-  document.getElementById('modal-title').innerText = 'New Lesson Plan';
-  document.getElementById('lesson-form').reset();
-  document.getElementById('lesson-id').value = 'lp_' + Date.now();
-  document.getElementById('lesson-date').value = dateStr;
-  document.getElementById('lesson-start').value = startTimeStr;
-  document.getElementById('lesson-end').value = endTimeStr;
-  document.getElementById('lesson-materials').value = '';
-
-  attachedLinks = [];
-  document.getElementById('inline-link-box').classList.add('hidden');
-  renderAttachedLinks();
-
-  selectedDupDates = [];
-  renderDupDatesList();
-  document.getElementById('duplicate-panel').classList.add('hidden');
-  document.getElementById('duplicate-btn').classList.add('hidden');
-  document.getElementById('delete-btn').classList.add('hidden');
-  document.getElementById('lesson-modal').classList.remove('hidden');
-}
-
-function openModalForEdit(lesson) {
-  document.getElementById('modal-title').innerText = 'Edit Lesson Plan';
-  let dateStr = '';
-  if (lesson.date) {
-    dateStr = String(lesson.date).split('T').at(0);
-  }
-  document.getElementById('lesson-id').value = lesson.id;
-  document.getElementById('lesson-title').value = lesson.title || '';
-  document.getElementById('lesson-subject').value = lesson.subject || '';
-  document.getElementById('lesson-grade').value = lesson.grade || '';
-  document.getElementById('lesson-date').value = dateStr;
-  document.getElementById('lesson-start').value = formatTimeForInput(lesson.startTime);
-  document.getElementById('lesson-end').value = formatTimeForInput(lesson.endTime);
-  document.getElementById('lesson-objectives').value = lesson.objectives || '';
-  document.getElementById('lesson-procedure').value = lesson.procedure || '';
-  document.getElementById('lesson-assessment').value = lesson.assessment || '';
-
-  const parsedMat = parseMaterialsField(lesson.materials);
-  document.getElementById('lesson-materials').value = parsedMat.text;
-  attachedLinks = parsedMat.links;
-
-  document.getElementById('inline-link-box').classList.add('hidden');
-  renderAttachedLinks();
-
-  selectedDupDates = [];
-  renderDupDatesList();
-  document.getElementById('duplicate-panel').classList.add('hidden');
-  document.getElementById('duplicate-btn').classList.remove('hidden');
-  document.getElementById('delete-btn').classList.remove('hidden');
-  document.getElementById('lesson-modal').classList.remove('hidden');
-}
-
 function renderMiniCalendar() {
   const container = document.getElementById('dup-mini-calendar-days');
   const titleEl = document.getElementById('dup-month-title');
@@ -242,12 +173,10 @@ function renderMiniCalendar() {
 
   let html = '';
 
-  // Blank padding cells before start of month
   for (let i = 0; i < firstDayIndex; i++) {
     html += `<div class="p-1"></div>`;
   }
 
-  // Days of the month
   for (let day = 1; day <= daysInMonth; day++) {
     const monthStr = String(month + 1).padStart(2, '0');
     const dayStr = String(day).padStart(2, '0');
@@ -285,26 +214,78 @@ function toggleDupDate(dateStr) {
   renderDupDatesList();
 }
 
-// In setupEventListeners():
-document.getElementById('prev-dup-month-btn').onclick = () => {
-  miniCalCurrentDate.setMonth(miniCalCurrentDate.getMonth() - 1);
-  renderMiniCalendar();
-};
+function openModalForNewPlan(startIso, endIso, isAllDay = false) {
+  let dateStr = startIso.split('T').at(0);
+  let startTimeStr = '09:00';
+  let endTimeStr = '10:00';
 
-document.getElementById('next-dup-month-btn').onclick = () => {
-  miniCalCurrentDate.setMonth(miniCalCurrentDate.getMonth() + 1);
-  renderMiniCalendar();
-};
+  if (isAllDay || !startIso.includes('T')) {
+    startTimeStr = '07:00';
+    endTimeStr = '15:00';
+  } else {
+    const startDateObj = new Date(startIso);
+    const endDateObj = new Date(endIso);
+    startTimeStr = startDateObj.toTimeString().substring(0, 5);
+    endTimeStr = endDateObj.toTimeString().substring(0, 5);
+  }
 
-document.getElementById('clear-dup-dates-btn').onclick = () => {
+  document.getElementById('modal-title').innerText = 'New Lesson Plan';
+  document.getElementById('lesson-form').reset();
+  document.getElementById('lesson-id').value = 'lp_' + Date.now();
+  document.getElementById('lesson-date').value = dateStr;
+  document.getElementById('lesson-start').value = startTimeStr;
+  document.getElementById('lesson-end').value = endTimeStr;
+  document.getElementById('lesson-materials').value = '';
+
+  attachedLinks = [];
+  document.getElementById('inline-link-box').classList.add('hidden');
+  renderAttachedLinks();
+
   selectedDupDates = [];
+  miniCalCurrentDate = new Date();
   renderMiniCalendar();
   renderDupDatesList();
-};
 
-// Inside openModalForEdit / openModalForNewPlan:
-miniCalCurrentDate = new Date();
-renderMiniCalendar();
+  document.getElementById('duplicate-panel').classList.add('hidden');
+  document.getElementById('duplicate-btn').classList.add('hidden');
+  document.getElementById('delete-btn').classList.add('hidden');
+  document.getElementById('lesson-modal').classList.remove('hidden');
+}
+
+function openModalForEdit(lesson) {
+  document.getElementById('modal-title').innerText = 'Edit Lesson Plan';
+  let dateStr = '';
+  if (lesson.date) {
+    dateStr = String(lesson.date).split('T').at(0);
+  }
+  document.getElementById('lesson-id').value = lesson.id;
+  document.getElementById('lesson-title').value = lesson.title || '';
+  document.getElementById('lesson-subject').value = lesson.subject || '';
+  document.getElementById('lesson-grade').value = lesson.grade || '';
+  document.getElementById('lesson-date').value = dateStr;
+  document.getElementById('lesson-start').value = formatTimeForInput(lesson.startTime);
+  document.getElementById('lesson-end').value = formatTimeForInput(lesson.endTime);
+  document.getElementById('lesson-objectives').value = lesson.objectives || '';
+  document.getElementById('lesson-procedure').value = lesson.procedure || '';
+  document.getElementById('lesson-assessment').value = lesson.assessment || '';
+
+  const parsedMat = parseMaterialsField(lesson.materials);
+  document.getElementById('lesson-materials').value = parsedMat.text;
+  attachedLinks = parsedMat.links;
+
+  document.getElementById('inline-link-box').classList.add('hidden');
+  renderAttachedLinks();
+
+  selectedDupDates = [];
+  miniCalCurrentDate = new Date();
+  renderMiniCalendar();
+  renderDupDatesList();
+
+  document.getElementById('duplicate-panel').classList.add('hidden');
+  document.getElementById('duplicate-btn').classList.remove('hidden');
+  document.getElementById('delete-btn').classList.remove('hidden');
+  document.getElementById('lesson-modal').classList.remove('hidden');
+}
 
 function renderDupDatesList() {
   const container = document.getElementById('dup-dates-list');
@@ -323,6 +304,7 @@ function renderDupDatesList() {
 function removeDupDate(index) {
   selectedDupDates.splice(index, 1);
   renderDupDatesList();
+  renderMiniCalendar();
 }
 
 function setupEventListeners() {
@@ -364,27 +346,70 @@ function setupEventListeners() {
     renderAttachedLinks();
   };
 
+  // Mini-Calendar Navigation & Action Listeners
+  document.getElementById('prev-dup-month-btn').onclick = () => {
+    miniCalCurrentDate.setMonth(miniCalCurrentDate.getMonth() - 1);
+    renderMiniCalendar();
+  };
+
+  document.getElementById('next-dup-month-btn').onclick = () => {
+    miniCalCurrentDate.setMonth(miniCalCurrentDate.getMonth() + 1);
+    renderMiniCalendar();
+  };
+
+  document.getElementById('clear-dup-dates-btn').onclick = () => {
+    selectedDupDates = [];
+    renderMiniCalendar();
+    renderDupDatesList();
+  };
+
+  // Add Date Range for Duplication
+  document.getElementById('add-range-btn').onclick = () => {
+    const startVal = document.getElementById('dup-range-start').value;
+    const endVal = document.getElementById('dup-range-end').value;
+
+    if (!startVal || !endVal) {
+      alert('Please select both a Start Date and an End Date for the range.');
+      return;
+    }
+
+    let current = new Date(startVal + 'T00:00:00');
+    const end = new Date(endVal + 'T00:00:00');
+
+    if (current > end) {
+      alert('Start Date must be before or equal to End Date.');
+      return;
+    }
+
+    while (current <= end) {
+      const year = current.getFullYear();
+      const month = String(current.getMonth() + 1).padStart(2, '0');
+      const day = String(current.getDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${day}`;
+
+      if (!selectedDupDates.includes(dateStr)) {
+        selectedDupDates.push(dateStr);
+      }
+      current.setDate(current.getDate() + 1);
+    }
+
+    selectedDupDates.sort();
+    document.getElementById('dup-range-start').value = '';
+    document.getElementById('dup-range-end').value = '';
+    renderMiniCalendar();
+    renderDupDatesList();
+  };
+
   // Toggle Duplication Panel
   document.getElementById('duplicate-btn').onclick = () => {
     const panel = document.getElementById('duplicate-panel');
     panel.classList.toggle('hidden');
   };
 
-  // Add Target Date for Duplication
-  document.getElementById('add-dup-date-btn').onclick = () => {
-    const input = document.getElementById('dup-date-input');
-    const val = input.value;
-    if (val && !selectedDupDates.includes(val)) {
-      selectedDupDates.push(val);
-      input.value = '';
-      renderDupDatesList();
-    }
-  };
-
   // Confirm Duplication Across All Target Dates
   document.getElementById('confirm-dup-btn').onclick = async () => {
     if (selectedDupDates.length === 0) {
-      alert('Please add at least one target date to duplicate this lesson plan.');
+      alert('Please select at least one target date on the calendar.');
       return;
     }
 
@@ -524,48 +549,6 @@ function setupEventListeners() {
       renderSpecialNotesRow();
     }
   };
-
-  // Add Date Range for Duplication
-  document.getElementById('add-range-btn').onclick = () => {
-    const startVal = document.getElementById('dup-start-range').value;
-    const endVal = document.getElementById('dup-end-range').value;
-    const skipWeekends = document.getElementById('dup-skip-weekends').checked;
-
-    if (!startVal || !endVal) {
-      alert('Please select both a Start Date and an End Date for the range.');
-      return;
-    }
-
-    let current = new Date(startVal + 'T00:00:00');
-    const end = new Date(endVal + 'T00:00:00');
-
-    if (current > end) {
-      alert('Start Date must be before or equal to End Date.');
-      return;
-    }
-
-    let addedCount = 0;
-    while (current <= end) {
-      const dayOfWeek = current.getDay(); // 0 = Sun, 6 = Sat
-      if (!skipWeekends || (dayOfWeek !== 0 && dayOfWeek !== 6)) {
-        const year = current.getFullYear();
-        const month = String(current.getMonth() + 1).padStart(2, '0');
-        const day = String(current.getDate()).padStart(2, '0');
-        const dateStr = `${year}-${month}-${day}`;
-
-        if (!selectedDupDates.includes(dateStr)) {
-          selectedDupDates.push(dateStr);
-          addedCount++;
-        }
-      }
-      current.setDate(current.getDate() + 1);
-    }
-
-    selectedDupDates.sort();
-    document.getElementById('dup-start-range').value = '';
-    document.getElementById('dup-end-range').value = '';
-    renderDupDatesList();
-  };
 }
 
 function showConfirmModal(title, message, onConfirm) {
@@ -586,7 +569,6 @@ function updateStatus(message, isError = false) {
   statusEl.className = `text-sm font-medium ${isError ? 'text-red-500' : 'text-slate-500'}`;
 }
 
-// Special Notes Helpers
 function getNotesForDate(dateStr) {
   const val = specialNotes[dateStr];
   if (!val) return [];
@@ -633,7 +615,6 @@ function deleteNoteAtIndex(index) {
   renderSpecialNotesRow();
 }
 
-// Native Table-Integrated Special Notes Row
 function renderSpecialNotesRow() {
   const headerTable = document.querySelector('.fc-col-header');
   if (!headerTable) {
