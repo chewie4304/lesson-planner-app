@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.2] - 2026-09-12
+
+### Fixed
+- **Apps Script Cold-Start Resilience**: Added an automatic background retry mechanism (`fetchWithRetry`) to `loadLessons()` that retries up to 3 times with backoff delays, silently resolving temporary Google Apps Script cold-start HTML redirects without raising false offline errors.
+
 ## [1.3.1] - 2026-09-12
 
 ### Fixed

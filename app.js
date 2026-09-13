@@ -75,12 +75,29 @@ function initCalendar() {
   setTimeout(renderSpecialNotesRow, 100);
 }
 
+// Helper to retry fetches automatically if Google returns an HTML cold-start error
+async function fetchWithRetry(url, options = {}, retries = 3, delay = 1500) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const response = await fetch(url, options);
+      const text = await response.text();
+
+      // Ensure the response is valid JSON and not a Google HTML error page
+      const data = JSON.parse(text);
+      return data;
+    } catch (err) {
+      if (i === retries - 1) throw err; // Re-throw on final failed attempt
+      console.warn(`Fetch attempt ${i + 1} failed (cold start). Retrying in ${delay}ms...`);
+      await new Promise(res => setTimeout(res, delay));
+    }
+  }
+}
+
 async function loadLessons() {
   updateStatus('Loading lessons...');
   try {
-    const response = await fetch(APPS_SCRIPT_URL);
-    const result = await response.json();
-    if (result.status === 'success') {
+    const result = await fetchWithRetry(APPS_SCRIPT_URL);
+    if (result && result.status === 'success') {
       lessonsData = result.data;
       renderEventsOnCalendar();
       updateStatus('All changes synced');
