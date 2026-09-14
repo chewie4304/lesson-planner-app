@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.0] - 2026-09-13
+
+### Added
+- **Side-by-Side Overlapping Timeslots**: Configured FullCalendar `slotEventOverlap: true` and `eventOverlap: true` to display multiple lesson plans in the same time slot side-by-side.
+- **Subject-Based Color Coding**: Added dynamic color mapping (`getSubjectColor`) to visually distinguish overlapping or adjacent lessons by subject at a glance.
+
 ## [1.3.2] - 2026-09-12
 
 ### Fixed

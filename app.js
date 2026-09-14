@@ -15,6 +15,29 @@ let currentMaterialsText = [];
 let attachedLinks = [];
 let currentProcedure = []; // [{ text: 'Step...', completed: false }]
 
+// Color Palette for Distinct Side-by-Side Subject Rendering
+const SUBJECT_COLORS = [
+  { bg: '#4f46e5', border: '#4338ca' }, // Indigo
+  { bg: '#0891b2', border: '#0e7490' }, // Cyan
+  { bg: '#059669', border: '#047857' }, // Emerald
+  { bg: '#d97706', border: '#b45309' }, // Amber
+  { bg: '#7c3aed', border: '#6d28d9' }, // Violet
+  { bg: '#db2777', border: '#be185d' }, // Pink
+  { bg: '#ea580c', border: '#c2410c' }, // Orange
+  { bg: '#0284c7', border: '#0369a1' }  // Sky
+];
+
+function getSubjectColor(subject) {
+  if (!subject) return SUBJECT_COLORS;
+  let hash = 0;
+  const str = String(subject).trim().toLowerCase();
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash) % SUBJECT_COLORS.length;
+  return SUBJECT_COLORS[index];
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   if (typeof FullCalendar === 'undefined') {
     updateStatus('Error: FullCalendar failed to load.', true);
@@ -50,6 +73,8 @@ function initCalendar() {
     initialView: 'timeGridWeek',
     weekends: false,
     allDayText: 'All-day',
+    slotEventOverlap: true, // Enable side-by-side columns for overlapping events
+    eventOverlap: true,
     headerToolbar: {
       left: 'prev,next today',
       center: 'title',
@@ -75,18 +100,16 @@ function initCalendar() {
   setTimeout(renderSpecialNotesRow, 100);
 }
 
-// Helper to retry fetches automatically if Google returns an HTML cold-start error
+// Automatic retry helper for Google Apps Script cold starts
 async function fetchWithRetry(url, options = {}, retries = 3, delay = 1500) {
   for (let i = 0; i < retries; i++) {
     try {
       const response = await fetch(url, options);
       const text = await response.text();
-
-      // Ensure the response is valid JSON and not a Google HTML error page
       const data = JSON.parse(text);
       return data;
     } catch (err) {
-      if (i === retries - 1) throw err; // Re-throw on final failed attempt
+      if (i === retries - 1) throw err;
       console.warn(`Fetch attempt ${i + 1} failed (cold start). Retrying in ${delay}ms...`);
       await new Promise(res => setTimeout(res, delay));
     }
@@ -122,13 +145,15 @@ function renderEventsOnCalendar() {
     const startIso = `${dateStr}T${startTime}:00`;
     const endIso = `${dateStr}T${endTime}:00`;
 
+    const color = getSubjectColor(lesson.subject);
+
     return {
       id: String(lesson.id),
       title: `${lesson.title || 'Untitled'} (${lesson.subject || 'General'})`,
       start: startIso,
       end: endIso,
-      backgroundColor: '#4f46e5',
-      borderColor: '#4338ca'
+      backgroundColor: color.bg,
+      borderColor: color.border
     };
   });
   calendar.addEventSource(events);
@@ -269,7 +294,6 @@ function renderMaterialsBadges() {
 
   let html = '';
 
-  // Render text items
   html += currentMaterialsText.map((item, idx) => `
     <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-md text-xs font-medium shadow-sm">
       <span>📦 ${escapeHtml(item)}</span>
@@ -277,7 +301,6 @@ function renderMaterialsBadges() {
     </span>
   `).join('');
 
-  // Render link badges
   html += attachedLinks.map((item, idx) => `
     <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-md text-xs font-semibold shadow-sm">
       <a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" class="hover:underline flex items-center gap-1">
@@ -415,7 +438,6 @@ function openModalForNewPlan(startIso, endIso, isAllDay = false) {
   document.getElementById('lesson-start').value = startTimeStr;
   document.getElementById('lesson-end').value = endTimeStr;
 
-  // Reset Reactive Fields State
   currentObjectives = [];
   currentAssessment = [];
   currentMaterialsText = [];
@@ -454,7 +476,6 @@ function openModalForEdit(lesson) {
   document.getElementById('lesson-start').value = formatTimeForInput(lesson.startTime);
   document.getElementById('lesson-end').value = formatTimeForInput(lesson.endTime);
 
-  // Populate Reactive Items from Saved Lesson Data
   currentObjectives = parseListField(lesson.objectives);
   currentAssessment = parseListField(lesson.assessment);
   currentProcedure = parseProcedureField(lesson.procedure);
@@ -508,7 +529,6 @@ function setupEventListeners() {
   document.getElementById('close-modal').onclick = () => modal.classList.add('hidden');
   document.getElementById('cancel-btn').onclick = () => modal.classList.add('hidden');
 
-  // Keydown Listeners for Enter-Key Reactivity
   document.getElementById('lesson-objectives-input').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -557,7 +577,6 @@ function setupEventListeners() {
     }
   });
 
-  // Inline Add Link Listeners
   const inlineLinkBox = document.getElementById('inline-link-box');
   document.getElementById('toggle-add-link-btn').onclick = () => {
     document.getElementById('link-title-input').value = '';
@@ -589,7 +608,6 @@ function setupEventListeners() {
     renderMaterialsBadges();
   };
 
-  // Mini-Calendar Navigation & Action Listeners
   document.getElementById('prev-dup-month-btn').onclick = () => {
     miniCalCurrentDate.setMonth(miniCalCurrentDate.getMonth() - 1);
     renderMiniCalendar();
@@ -606,7 +624,6 @@ function setupEventListeners() {
     renderDupDatesList();
   };
 
-  // Add Date Range for Duplication
   document.getElementById('add-range-btn').onclick = () => {
     const startVal = document.getElementById('dup-range-start').value;
     const endVal = document.getElementById('dup-range-end').value;
@@ -643,15 +660,13 @@ function setupEventListeners() {
     renderDupDatesList();
   };
 
-  // Toggle Duplication Panel
   document.getElementById('duplicate-btn').onclick = () => {
     const panel = document.getElementById('duplicate-panel');
     panel.classList.toggle('hidden');
   };
 
-  // Confirm Duplication Across All Target Dates
   document.getElementById('confirm-dup-btn').onclick = async () => {
-    commitPendingInputs(); // <-- ADD THIS LINE HERE
+    commitPendingInputs();
 
     if (selectedDupDates.length === 0) {
       alert('Please select at least one target date on the calendar.');
@@ -759,14 +774,12 @@ function setupEventListeners() {
     );
   };
 
-  // Confirmation Modal Listeners
   document.getElementById('confirm-cancel-btn').onclick = hideConfirmModal;
   document.getElementById('confirm-action-btn').onclick = () => {
     if (confirmCallback) confirmCallback();
     hideConfirmModal();
   };
 
-  // Special Notes Modal Listeners
   const noteModal = document.getElementById('note-modal');
   document.getElementById('close-note-modal').onclick = () => noteModal.classList.add('hidden');
   document.getElementById('done-note-btn').onclick = () => noteModal.classList.add('hidden');
