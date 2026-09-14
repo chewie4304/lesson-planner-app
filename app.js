@@ -73,16 +73,17 @@ function initCalendar() {
     initialView: 'timeGridWeek',
     weekends: false,
     allDayText: 'All-day',
-    slotEventOverlap: true, // Enable side-by-side columns for overlapping events
-    eventOverlap: true,
+    slotDuration: '00:15:00',      // 15-minute grid slots so 15-min lessons fit cleanly
+    slotLabelInterval: '01:00:00', // Keeps time axis labels clean (7am, 8am, 9am...)
+    slotMinTime: '07:00:00',
+    slotMaxTime: '18:00:00',
+    expandRows: true,              // Fills calendar height evenly
+    selectable: true,
     headerToolbar: {
       left: 'prev,next today',
       center: 'title',
       right: 'dayGridMonth,timeGridWeek,timeGridDay'
     },
-    slotMinTime: '07:00:00',
-    slotMaxTime: '18:00:00',
-    selectable: true,
     datesSet: function () {
       setTimeout(renderSpecialNotesRow, 100);
     },

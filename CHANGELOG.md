@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.1] - 2026-09-13
+
+### Fixed
+- **15-Minute Slot Alignment**: Configured FullCalendar `slotDuration: '00:15:00'` and `slotLabelInterval: '01:00:00'` so 15-minute lessons fit cleanly within their time grid boundaries without overflowing or triggering false side-by-side column splits on back-to-back morning schedules.
+
 ## [1.4.0] - 2026-09-13
 
 ### Added
