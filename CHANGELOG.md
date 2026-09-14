@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.5.0] - 2026-09-13
+
+### Changed
+- **Grade-Level Color Palette**: Configured custom color palette mapping in `app.js` specifically for grade levels `6`, `7`, `8`, `7A`, `Alg`, and `678`.
+
 ## [1.4.1] - 2026-09-13
 
 ### Fixed

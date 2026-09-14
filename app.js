@@ -15,27 +15,43 @@ let currentMaterialsText = [];
 let attachedLinks = [];
 let currentProcedure = []; // [{ text: 'Step...', completed: false }]
 
-// Color Palette for Distinct Side-by-Side Subject Rendering
-const SUBJECT_COLORS = [
-  { bg: '#4f46e5', border: '#4338ca' }, // Indigo
-  { bg: '#0891b2', border: '#0e7490' }, // Cyan
-  { bg: '#059669', border: '#047857' }, // Emerald
-  { bg: '#d97706', border: '#b45309' }, // Amber
-  { bg: '#7c3aed', border: '#6d28d9' }, // Violet
-  { bg: '#db2777', border: '#be185d' }, // Pink
-  { bg: '#ea580c', border: '#c2410c' }, // Orange
-  { bg: '#0284c7', border: '#0369a1' }  // Sky
+// Dedicated Color Palette for Custom Grade Levels
+const GRADE_COLORS = {
+  '6': { bg: '#059669', border: '#047857' }, // 6th Grade - Emerald Green
+  '7': { bg: '#2563eb', border: '#1d4ed8' }, // 7th Grade - Royal Blue
+  '8': { bg: '#7c3aed', border: '#6d28d9' }, // 8th Grade - Purple
+  '7a': { bg: '#0891b2', border: '#0e7490' }, // 7A - Cyan/Teal
+  'alg': { bg: '#db2777', border: '#be185d' }, // Algebra - Pink/Magenta
+  '678': { bg: '#d97706', border: '#b45309' }  // 678 Combined - Amber/Orange
+};
+
+const GRADE_PALETTE_FALLBACK = [
+  { bg: '#4f46e5', border: '#4338ca' },
+  { bg: '#ea580c', border: '#c2410c' },
+  { bg: '#0284c7', border: '#0369a1' }
 ];
 
-function getSubjectColor(subject) {
-  if (!subject) return SUBJECT_COLORS;
-  let hash = 0;
-  const str = String(subject).trim().toLowerCase();
-  for (let i = 0; i < str.length; i++) {
-    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+function getGradeColor(grade) {
+  if (!grade) return { bg: '#4f46e5', border: '#4338ca' };
+  const key = String(grade).trim().toLowerCase();
+
+  // 1. Direct key match
+  if (GRADE_COLORS[key]) {
+    return GRADE_COLORS[key];
   }
-  const index = Math.abs(hash) % SUBJECT_COLORS.length;
-  return SUBJECT_COLORS[index];
+
+  // 2. Substring match (longest key first so '678' and '7a' match before '7' or '6')
+  const keys = Object.keys(GRADE_COLORS).sort((a, b) => b.length - a.length);
+  for (const k of keys) {
+    if (key.includes(k)) return GRADE_COLORS[k];
+  }
+
+  // 3. Fallback hashing for any unmapped grade inputs
+  let hash = 0;
+  for (let i = 0; i < key.length; i++) {
+    hash = key.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return GRADE_PALETTE_FALLBACK[Math.abs(hash) % GRADE_PALETTE_FALLBACK.length];
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -146,7 +162,8 @@ function renderEventsOnCalendar() {
     const startIso = `${dateStr}T${startTime}:00`;
     const endIso = `${dateStr}T${endTime}:00`;
 
-    const color = getSubjectColor(lesson.subject);
+    // Fetch custom color based on grade level
+    const color = getGradeColor(lesson.grade);
 
     return {
       id: String(lesson.id),
