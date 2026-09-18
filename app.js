@@ -31,6 +31,63 @@ const GRADE_PALETTE_FALLBACK = [
   { bg: '#0284c7', border: '#0369a1' }
 ];
 
+let currentEditingLessonId = null;
+
+function getSortedLessons() {
+  return [...lessonsData].sort((a, b) => {
+    // Extract string value before 'T' (e.g. '2026-09-17')
+    const dateA = (String(a.date || '').split('T').at(0) || '').trim();
+    const dateB = (String(b.date || '').split('T').at(0) || '').trim();
+    if (dateA !== dateB) return dateA.localeCompare(dateB);
+
+    const timeA = String(a.startTime || '').trim();
+    const timeB = String(b.startTime || '').trim();
+    return timeA.localeCompare(timeB);
+  });
+}
+
+function updateModalNavigationControls() {
+  const sorted = getSortedLessons();
+  const index = sorted.findIndex(l => String(l.id) === String(currentEditingLessonId));
+  const navContainer = document.getElementById('modal-nav-controls');
+  const counterEl = document.getElementById('lesson-nav-counter');
+  const prevBtn = document.getElementById('prev-lesson-btn');
+  const nextBtn = document.getElementById('next-lesson-btn');
+
+  if (index === -1 || sorted.length <= 1) {
+    if (navContainer) navContainer.classList.add('hidden');
+    if (counterEl) counterEl.classList.add('hidden');
+    return;
+  }
+
+  if (navContainer) navContainer.classList.remove('hidden');
+  if (counterEl) {
+    counterEl.classList.remove('hidden');
+    counterEl.innerText = `${index + 1} of ${sorted.length}`;
+  }
+
+  if (prevBtn) prevBtn.disabled = (index === 0);
+  if (nextBtn) nextBtn.disabled = (index === sorted.length - 1);
+}
+
+function navigateToPrevLesson() {
+  const sorted = getSortedLessons();
+  const index = sorted.findIndex(l => String(l.id) === String(currentEditingLessonId));
+  if (index > 0) {
+    commitPendingInputs();
+    openModalForEdit(sorted[index - 1]);
+  }
+}
+
+function navigateToNextLesson() {
+  const sorted = getSortedLessons();
+  const index = sorted.findIndex(l => String(l.id) === String(currentEditingLessonId));
+  if (index >= 0 && index < sorted.length - 1) {
+    commitPendingInputs();
+    openModalForEdit(sorted[index + 1]);
+  }
+}
+
 function getGradeColor(grade) {
   if (!grade) return { bg: '#4f46e5', border: '#4338ca' };
   const key = String(grade).trim().toLowerCase();
@@ -435,6 +492,8 @@ function toggleDupDate(dateStr) {
 }
 
 function openModalForNewPlan(startIso, endIso, isAllDay = false) {
+  currentEditingLessonId = null;
+  updateModalNavigationControls();
   let dateStr = startIso.split('T').at(0);
   let startTimeStr = '09:00';
   let endTimeStr = '10:00';
@@ -481,6 +540,8 @@ function openModalForNewPlan(startIso, endIso, isAllDay = false) {
 }
 
 function openModalForEdit(lesson) {
+  currentEditingLessonId = lesson.id;
+  updateModalNavigationControls();
   document.getElementById('modal-title').innerText = 'Edit Lesson Plan';
   let dateStr = '';
   if (lesson.date) {
@@ -546,6 +607,27 @@ function setupEventListeners() {
 
   document.getElementById('close-modal').onclick = () => modal.classList.add('hidden');
   document.getElementById('cancel-btn').onclick = () => modal.classList.add('hidden');
+  document.getElementById('prev-lesson-btn').onclick = navigateToPrevLesson;
+  document.getElementById('next-lesson-btn').onclick = navigateToNextLesson;
+
+  document.addEventListener('keydown', (e) => {
+    const modal = document.getElementById('lesson-modal');
+    if (!modal || modal.classList.contains('hidden')) return;
+
+    // Ignore arrow keys while typing inside inputs or textareas
+    const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+    if (activeTag === 'input' || activeTag === 'textarea' || document.activeElement.isContentEditable) {
+      return;
+    }
+
+    if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      navigateToPrevLesson();
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      navigateToNextLesson();
+    }
+  });
 
   document.getElementById('lesson-objectives-input').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {

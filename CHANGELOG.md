@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.6.0] - 2026-09-17
+
+### Added
+
+- **Modal Lesson Navigation**: Added `← Prev` and `Next →` navigation buttons and a position counter (`Lesson X of Y`) to cycle through saved lessons directly inside the modal editor.
+- **Keyboard Arrow Navigation**: Supported `ArrowLeft` and `ArrowRight` hotkeys to switch lessons instantly in 0ms, with smart input detection to avoid triggers while typing.
+
+### Fixed
+
+- **Date Sorting & Selection Resilience**: Fixed date string parsing in `getSortedLessons()` to prevent `TypeError` crashes during event selection [2].
+- **Form Listener Null Safety**: Added null-guards in `setupEventListeners()` to ensure smooth startup across HTML versions [56–59].
+
 ## [1.5.0] - 2026-09-13
 
 ### Changed

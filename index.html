@@ -45,7 +45,23 @@
     <div class="bg-white rounded-xl shadow-xl max-w-5xl w-full p-6 relative max-h-[92vh] overflow-y-auto">
       <button id="close-modal" type="button"
         class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
-      <h2 id="modal-title" class="text-xl font-bold mb-4">Lesson Plan</h2>
+      <div class="flex items-center justify-between mb-4 pb-2 border-b border-slate-100">
+        <div class="flex items-center gap-3">
+          <h2 id="modal-title" class="text-xl font-bold text-slate-900">Lesson Plan</h2>
+          <span id="lesson-nav-counter"
+            class="text-xs font-semibold px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full hidden"></span>
+        </div>
+        <div id="modal-nav-controls" class="hidden flex items-center gap-1.5 pr-6">
+          <button type="button" id="prev-lesson-btn"
+            class="px-2.5 py-1 text-xs border rounded-md font-medium text-slate-700 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1">
+            &larr; Prev
+          </button>
+          <button type="button" id="next-lesson-btn"
+            class="px-2.5 py-1 text-xs border rounded-md font-medium text-slate-700 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1">
+            Next &rarr;
+          </button>
+        </div>
+      </div>
 
       <form id="lesson-form" class="space-y-6">
         <input type="hidden" id="lesson-id">
