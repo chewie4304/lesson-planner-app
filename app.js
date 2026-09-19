@@ -102,6 +102,31 @@ function navigateToNextLesson() {
   }
 }
 
+// Autocomplete Datalist Helper
+function updateAutocompleteDatalists() {
+  const subjectList = document.getElementById('subject-list');
+  const gradeList = document.getElementById('grade-list');
+
+  // Gather unique subjects from lessonsData and localStorage
+  const storedSubjects = JSON.parse(localStorage.getItem('savedSubjects') || '[]');
+  const lessonSubjects = lessonsData.map(l => l.subject).filter(Boolean);
+  const uniqueSubjects = [...new Set([...storedSubjects, ...lessonSubjects])].sort();
+
+  if (subjectList) {
+    subjectList.innerHTML = uniqueSubjects.map(s => `<option value="${escapeHtml(s)}">`).join('');
+  }
+
+  // Gather unique Grade/Student entries from lessonsData, custom colors, and localStorage
+  const storedGrades = JSON.parse(localStorage.getItem('savedGrades') || '[]');
+  const lessonGrades = lessonsData.map(l => l.grade).filter(Boolean);
+  const colorGradeKeys = Object.keys(customGradeColors || {}).map(k => k.toUpperCase());
+  const uniqueGrades = [...new Set([...storedGrades, ...lessonGrades, ...colorGradeKeys])].sort();
+
+  if (gradeList) {
+    gradeList.innerHTML = uniqueGrades.map(g => `<option value="${escapeHtml(g)}">`).join('');
+  }
+}
+
 // Color Palette & Grade Mapping Helpers
 function getGradeColor(grade) {
   if (!grade) return PALETTE_OPTIONS;
@@ -134,7 +159,7 @@ function getGradeColor(grade) {
 function renderColorPalette(selectedBg) {
   const container = document.getElementById('grade-color-palette');
   const labelEl = document.getElementById('selected-color-label');
-  if (!container) return; // Null-safe guard if container is not present in HTML
+  if (!container) return;
 
   container.innerHTML = PALETTE_OPTIONS.map(opt => {
     const isSelected = opt.bg.toLowerCase() === (selectedBg || '').toLowerCase();
@@ -256,6 +281,7 @@ async function loadLessons() {
     if (result && result.status === 'success') {
       lessonsData = result.data || [];
       renderEventsOnCalendar();
+      updateAutocompleteDatalists();
       updateStatus('All changes synced');
     } else {
       updateStatus('Failed to load lessons', true);
@@ -567,6 +593,7 @@ function toggleDupDate(dateStr) {
 function openModalForNewPlan(startIso, endIso, isAllDay = false) {
   currentEditingLessonId = null;
   updateModalNavigationControls();
+  updateAutocompleteDatalists();
 
   let dateStr = startIso.split('T').at(0);
   let startTimeStr = '09:00';
@@ -626,6 +653,7 @@ function openModalForNewPlan(startIso, endIso, isAllDay = false) {
 function openModalForEdit(lesson) {
   currentEditingLessonId = lesson.id;
   updateModalNavigationControls();
+  updateAutocompleteDatalists();
 
   document.getElementById('modal-title').innerText = 'Edit Lesson Plan';
 
@@ -989,6 +1017,27 @@ function setupEventListeners() {
     form.onsubmit = async (e) => {
       e.preventDefault();
       commitPendingInputs();
+
+      // Remember typed Subject and Grade entries
+      const typedSubject = document.getElementById('lesson-subject').value.trim();
+      if (typedSubject) {
+        const storedSubjects = JSON.parse(localStorage.getItem('savedSubjects') || '[]');
+        if (!storedSubjects.includes(typedSubject)) {
+          storedSubjects.push(typedSubject);
+          localStorage.setItem('savedSubjects', JSON.stringify(storedSubjects));
+        }
+      }
+
+      const typedGrade = document.getElementById('lesson-grade').value.trim();
+      if (typedGrade) {
+        const storedGrades = JSON.parse(localStorage.getItem('savedGrades') || '[]');
+        if (!storedGrades.includes(typedGrade)) {
+          storedGrades.push(typedGrade);
+          localStorage.setItem('savedGrades', JSON.stringify(storedGrades));
+        }
+      }
+
+      updateAutocompleteDatalists();
 
       const payload = {
         id: document.getElementById('lesson-id').value,
