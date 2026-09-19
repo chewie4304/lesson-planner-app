@@ -7,6 +7,7 @@ let activeNoteDate = null;
 let confirmCallback = null;
 let selectedDupDates = [];
 let miniCalCurrentDate = new Date();
+let draggedStepIndex = null;
 
 // Reactive Form Items State
 let currentObjectives = [];
@@ -107,19 +108,19 @@ function updateAutocompleteDatalists() {
   const subjectList = document.getElementById('subject-list');
   const gradeList = document.getElementById('grade-list');
 
-  // Gather unique subjects from lessonsData and localStorage
-  const storedSubjects = JSON.parse(localStorage.getItem('savedSubjects') || '[]');
-  const lessonSubjects = lessonsData.map(l => l.subject).filter(Boolean);
+  // Gather unique subjects as strings
+  const storedSubjects = JSON.parse(localStorage.getItem('savedSubjects') || '[]').map(String);
+  const lessonSubjects = lessonsData.map(l => String(l.subject || '')).filter(Boolean);
   const uniqueSubjects = [...new Set([...storedSubjects, ...lessonSubjects])].sort();
 
   if (subjectList) {
     subjectList.innerHTML = uniqueSubjects.map(s => `<option value="${escapeHtml(s)}">`).join('');
   }
 
-  // Gather unique Grade/Student entries from lessonsData, custom colors, and localStorage
-  const storedGrades = JSON.parse(localStorage.getItem('savedGrades') || '[]');
-  const lessonGrades = lessonsData.map(l => l.grade).filter(Boolean);
-  const colorGradeKeys = Object.keys(customGradeColors || {}).map(k => k.toUpperCase());
+  // Gather unique Grade/Student entries as strings
+  const storedGrades = JSON.parse(localStorage.getItem('savedGrades') || '[]').map(String);
+  const lessonGrades = lessonsData.map(l => String(l.grade || '')).filter(Boolean);
+  const colorGradeKeys = Object.keys(customGradeColors || {}).map(k => String(k).toUpperCase());
   const uniqueGrades = [...new Set([...storedGrades, ...lessonGrades, ...colorGradeKeys])].sort();
 
   if (gradeList) {
@@ -414,7 +415,10 @@ function commitPendingInputs() {
   }
 }
 
-// Render Functions for Reactive Badges
+// ================================
+// --- Render Objectives Badges ---
+// ================================
+
 function renderObjectivesBadges() {
   const container = document.getElementById('objectives-badges-container');
   if (!container) return;
@@ -424,8 +428,9 @@ function renderObjectivesBadges() {
   }
   container.innerHTML = currentObjectives.map((obj, idx) => `
     <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-sky-50 text-sky-800 border border-sky-200 rounded-md text-xs font-medium shadow-sm">
-      <span>🎯 ${escapeHtml(obj)}</span>
-      <button type="button" onclick="removeObjectiveItem(${idx})" class="text-sky-400 hover:text-red-600 font-bold text-sm leading-none">&times;</button>
+      <span class="cursor-pointer hover:underline" onclick="editObjectiveItem(${idx})" title="Click to edit">🎯 ${escapeHtml(obj)}</span>
+      <button type="button" onclick="editObjectiveItem(${idx})" class="text-sky-400 hover:text-sky-700 text-xs px-0.5" title="Edit">✏️</button>
+      <button type="button" onclick="removeObjectiveItem(${idx})" class="text-sky-400 hover:text-red-600 font-bold text-sm leading-none" title="Remove">&times;</button>
     </span>
   `).join('');
 }
@@ -434,6 +439,10 @@ function removeObjectiveItem(idx) {
   currentObjectives.splice(idx, 1);
   renderObjectivesBadges();
 }
+
+// ================================
+// --- Render Assessment Badges ---
+// ================================
 
 function renderAssessmentBadges() {
   const container = document.getElementById('assessment-badges-container');
@@ -444,8 +453,9 @@ function renderAssessmentBadges() {
   }
   container.innerHTML = currentAssessment.map((item, idx) => `
     <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-purple-50 text-purple-800 border border-purple-200 rounded-md text-xs font-medium shadow-sm">
-      <span>📊 ${escapeHtml(item)}</span>
-      <button type="button" onclick="removeAssessmentItem(${idx})" class="text-purple-400 hover:text-red-600 font-bold text-sm leading-none">&times;</button>
+      <span class="cursor-pointer hover:underline" onclick="editAssessmentItem(${idx})" title="Click to edit">📊 ${escapeHtml(item)}</span>
+      <button type="button" onclick="editAssessmentItem(${idx})" class="text-purple-400 hover:text-purple-700 text-xs px-0.5" title="Edit">✏️</button>
+      <button type="button" onclick="removeAssessmentItem(${idx})" class="text-purple-400 hover:text-red-600 font-bold text-sm leading-none" title="Remove">&times;</button>
     </span>
   `).join('');
 }
@@ -454,6 +464,10 @@ function removeAssessmentItem(idx) {
   currentAssessment.splice(idx, 1);
   renderAssessmentBadges();
 }
+
+// ================================
+// --- Render Materials Badges ---
+// ================================
 
 function renderMaterialsBadges() {
   const container = document.getElementById('materials-badges-container');
@@ -466,8 +480,9 @@ function renderMaterialsBadges() {
   let html = '';
   html += currentMaterialsText.map((item, idx) => `
     <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-md text-xs font-medium shadow-sm">
-      <span>📦 ${escapeHtml(item)}</span>
-      <button type="button" onclick="removeMaterialTextItem(${idx})" class="text-emerald-400 hover:text-red-600 font-bold text-sm leading-none">&times;</button>
+      <span class="cursor-pointer hover:underline" onclick="editMaterialTextItem(${idx})" title="Click to edit">📦 ${escapeHtml(item)}</span>
+      <button type="button" onclick="editMaterialTextItem(${idx})" class="text-emerald-400 hover:text-emerald-700 text-xs px-0.5" title="Edit">✏️</button>
+      <button type="button" onclick="removeMaterialTextItem(${idx})" class="text-emerald-400 hover:text-red-600 font-bold text-sm leading-none" title="Remove">&times;</button>
     </span>
   `).join('');
 
@@ -476,7 +491,8 @@ function renderMaterialsBadges() {
       <a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" class="hover:underline flex items-center gap-1">
         🔗 <span>${escapeHtml(item.title)}</span> ↗
       </a>
-      <button type="button" onclick="removeAttachedLink(${idx})" class="text-indigo-400 hover:text-red-600 font-bold text-sm leading-none">&times;</button>
+      <button type="button" onclick="editAttachedLink(${idx})" class="text-indigo-400 hover:text-indigo-700 text-xs px-0.5" title="Edit link">✏️</button>
+      <button type="button" onclick="removeAttachedLink(${idx})" class="text-indigo-400 hover:text-red-600 font-bold text-sm leading-none" title="Remove">&times;</button>
     </span>
   `).join('');
 
@@ -492,6 +508,10 @@ function removeAttachedLink(idx) {
   attachedLinks.splice(idx, 1);
   renderMaterialsBadges();
 }
+
+// ==================================
+// --- Render Procedure Checklist ---
+// ==================================
 
 function renderProcedureChecklist() {
   const container = document.getElementById('procedure-checklist-container');
@@ -509,15 +529,25 @@ function renderProcedureChecklist() {
   }
 
   container.innerHTML = currentProcedure.map((step, idx) => `
-    <div class="flex items-center justify-between p-2.5 ${step.completed ? 'bg-slate-100/70 border-slate-200' : 'bg-white border-slate-200'} border rounded-md shadow-sm transition-all group">
-      <label class="flex items-start gap-2.5 cursor-pointer min-w-0 flex-1 pr-2">
-        <input type="checkbox" ${step.completed ? 'checked' : ''} onchange="toggleProcedureStep(${idx})"
-          class="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer">
-        <span class="text-xs font-medium ${step.completed ? 'line-through text-slate-400' : 'text-slate-800'} break-words">
-          <span class="font-bold text-slate-400 mr-1">${idx + 1}.</span>${escapeHtml(step.text)}
-        </span>
-      </label>
-      <button type="button" onclick="removeProcedureStep(${idx})" class="text-slate-300 hover:text-red-500 font-bold text-sm px-1 transition-colors" title="Delete step">&times;</button>
+    <div draggable="true"
+      ondragstart="handleStepDragStart(event, ${idx})"
+      ondragover="handleStepDragOver(event)"
+      ondrop="handleStepDrop(event, ${idx})"
+      class="flex items-center justify-between p-2.5 ${step.completed ? 'bg-slate-100/70 border-slate-200' : 'bg-white border-slate-200'} border rounded-md shadow-sm transition-all group cursor-grab active:cursor-grabbing hover:border-indigo-300">
+      <div class="flex items-center gap-2 min-w-0 flex-1 pr-2">
+        <span class="text-slate-300 hover:text-slate-500 font-bold text-sm cursor-grab select-none" title="Drag to reorder">⠿</span>
+        <label class="flex items-start gap-2.5 cursor-pointer min-w-0 flex-1">
+          <input type="checkbox" ${step.completed ? 'checked' : ''} onchange="toggleProcedureStep(${idx})"
+            class="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer">
+          <span class="text-xs font-medium ${step.completed ? 'line-through text-slate-400' : 'text-slate-800'} break-words">
+            <span class="font-bold text-slate-400 mr-1">${idx + 1}.</span>${escapeHtml(step.text)}
+          </span>
+        </label>
+      </div>
+      <div class="flex items-center gap-1">
+        <button type="button" onclick="editProcedureStepText(${idx})" class="text-slate-300 hover:text-indigo-600 font-bold text-xs px-1 transition-colors" title="Edit step">✏️</button>
+        <button type="button" onclick="removeProcedureStep(${idx})" class="text-slate-300 hover:text-red-500 font-bold text-sm px-1 transition-colors" title="Delete step">&times;</button>
+      </div>
     </div>
   `).join('');
 }
@@ -532,7 +562,10 @@ function removeProcedureStep(idx) {
   renderProcedureChecklist();
 }
 
-// Mini Calendar & Duplication Picker
+// ============================
+// --- Render Mini Calendar ---
+// ============================
+
 function renderMiniCalendar() {
   const container = document.getElementById('dup-mini-calendar-days');
   const titleEl = document.getElementById('dup-month-title');
@@ -707,6 +740,75 @@ function openModalForEdit(lesson) {
   if (delBtn) delBtn.classList.remove('hidden');
 
   document.getElementById('lesson-modal').classList.remove('hidden');
+}
+
+function handleStepDragStart(e, idx) {
+  draggedStepIndex = idx;
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', idx);
+}
+
+function handleStepDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+}
+
+function handleStepDrop(e, targetIdx) {
+  e.preventDefault();
+  if (draggedStepIndex === null || draggedStepIndex === targetIdx) return;
+  const movedItem = currentProcedure.splice(draggedStepIndex, 1);
+  currentProcedure.splice(targetIdx, 0, movedItem);
+  draggedStepIndex = null;
+  renderProcedureChecklist();
+}
+
+// Inline Edit Handlers for Badges & Steps
+function editObjectiveItem(idx) {
+  const updated = prompt('Edit Objective:', currentObjectives[idx]);
+  if (updated !== null && updated.trim() !== '') {
+    currentObjectives[idx] = updated.trim();
+    renderObjectivesBadges();
+  }
+}
+
+function editAssessmentItem(idx) {
+  const updated = prompt('Edit Assessment Method:', currentAssessment[idx]);
+  if (updated !== null && updated.trim() !== '') {
+    currentAssessment[idx] = updated.trim();
+    renderAssessmentBadges();
+  }
+}
+
+function editMaterialTextItem(idx) {
+  const updated = prompt('Edit Material:', currentMaterialsText[idx]);
+  if (updated !== null && updated.trim() !== '') {
+    currentMaterialsText[idx] = updated.trim();
+    renderMaterialsBadges();
+  }
+}
+
+function editAttachedLink(idx) {
+  const current = attachedLinks[idx];
+  const newTitle = prompt('Edit Link Title:', current.title);
+  if (newTitle === null) return;
+  let newUrl = prompt('Edit Link URL:', current.url);
+  if (newUrl === null) return;
+  if (newTitle.trim() && newUrl.trim()) {
+    if (!/^https?:\/\//i.test(newUrl.trim())) {
+      newUrl = 'https://' + newUrl.trim();
+    }
+    attachedLinks[idx] = { title: newTitle.trim(), url: newUrl.trim() };
+    renderMaterialsBadges();
+  }
+}
+
+function editProcedureStepText(idx) {
+  const current = currentProcedure[idx].text;
+  const updated = prompt('Edit Step Text:', current);
+  if (updated !== null && updated.trim() !== '') {
+    currentProcedure[idx].text = updated.trim();
+    renderProcedureChecklist();
+  }
 }
 
 function renderDupDatesList() {
@@ -1272,5 +1374,5 @@ function renderSpecialNotesRow() {
 }
 
 function escapeHtml(str) {
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return String(str ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
