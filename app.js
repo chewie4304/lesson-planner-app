@@ -353,12 +353,13 @@ function parseProcedureField(raw) {
   if (!raw) return [];
   const parsed = safeJsonParse(raw);
   if (Array.isArray(parsed)) {
-    return parsed.map(item => {
+    // .flat(Infinity) un-nests any corrupted arrays saved during testing
+    return parsed.flat(Infinity).map(item => {
       if (typeof item === 'object' && item !== null) {
         return { text: String(item.text || ''), completed: Boolean(item.completed) };
       }
       return { text: String(item), completed: false };
-    });
+    }).filter(p => p.text.trim() !== '');
   }
   if (typeof parsed === 'string') {
     return parsed.split('\n').map(s => s.trim()).filter(Boolean).map(text => ({ text, completed: false }));
@@ -756,8 +757,11 @@ function handleStepDragOver(e) {
 function handleStepDrop(e, targetIdx) {
   e.preventDefault();
   if (draggedStepIndex === null || draggedStepIndex === targetIdx) return;
-  const movedItem = currentProcedure.splice(draggedStepIndex, 1);
+
+  // Notice [movedItem] destructuring to unpack the object from splice's return array
+  const [movedItem] = currentProcedure.splice(draggedStepIndex, 1);
   currentProcedure.splice(targetIdx, 0, movedItem);
+
   draggedStepIndex = null;
   renderProcedureChecklist();
 }
