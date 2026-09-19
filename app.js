@@ -353,7 +353,7 @@ function parseProcedureField(raw) {
   if (!raw) return [];
   const parsed = safeJsonParse(raw);
   if (Array.isArray(parsed)) {
-    // .flat(Infinity) un-nests any corrupted arrays saved during testing
+    // .flat(Infinity) un-nests any corrupted arrays from previous saves
     return parsed.flat(Infinity).map(item => {
       if (typeof item === 'object' && item !== null) {
         return { text: String(item.text || ''), completed: Boolean(item.completed) };
@@ -758,7 +758,7 @@ function handleStepDrop(e, targetIdx) {
   e.preventDefault();
   if (draggedStepIndex === null || draggedStepIndex === targetIdx) return;
 
-  // Notice [movedItem] destructuring to unpack the object from splice's return array
+  // Destructure [movedItem] to extract the step object from splice's return array
   const [movedItem] = currentProcedure.splice(draggedStepIndex, 1);
   currentProcedure.splice(targetIdx, 0, movedItem);
 
