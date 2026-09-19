@@ -1161,6 +1161,15 @@ function setupEventListeners() {
         status: 'Scheduled'
       };
 
+      // ⚡ INSTANT LOCAL UPDATE: Prevent Apps Script read-after-write latency
+      const existingIdx = lessonsData.findIndex(l => String(l.id) === String(payload.id));
+      if (existingIdx > -1) {
+        lessonsData[existingIdx] = payload;
+      } else {
+        lessonsData.push(payload);
+      }
+      renderEventsOnCalendar();
+
       modal.classList.add('hidden');
       updateStatus('Saving to Google Sheets...');
 
@@ -1173,7 +1182,8 @@ function setupEventListeners() {
 
         const result = await response.json();
         if (result.status === 'success') {
-          await loadLessons();
+          updateStatus('All changes synced');
+          // Do NOT call loadLessons() here; local memory is already up-to-date!
         } else {
           updateStatus(`Save error: ${result.message}`, true);
         }
