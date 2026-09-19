@@ -15,12 +15,24 @@ let currentMaterialsText = [];
 let attachedLinks = [];
 let currentProcedure = []; // [{ text: 'Step...', completed: false }]
 
-// Dedicated Color Palette for Custom Grade Levels
+// Dedicated Color Palette Options & Saved Colors
+const PALETTE_OPTIONS = [
+  { id: 'indigo', name: 'Indigo', bg: '#4f46e5', border: '#4338ca' },
+  { id: 'emerald', name: 'Emerald', bg: '#059669', border: '#047857' },
+  { id: 'blue', name: 'Royal Blue', bg: '#2563eb', border: '#1d4ed8' },
+  { id: 'purple', name: 'Purple', bg: '#7c3aed', border: '#6d28d9' },
+  { id: 'teal', name: 'Teal/Cyan', bg: '#0891b2', border: '#0e7490' },
+  { id: 'pink', name: 'Magenta/Pink', bg: '#db2777', border: '#be185d' },
+  { id: 'amber', name: 'Amber', bg: '#d97706', border: '#b45309' },
+  { id: 'rose', name: 'Rose', bg: '#e11d48', border: '#be123c' },
+  { id: 'sky', name: 'Sky Blue', bg: '#0284c7', border: '#0369a1' }
+];
+
 const GRADE_COLORS = {
-  '6': { bg: '#059669', border: '#047857' }, // 6th Grade - Emerald Green
-  '7': { bg: '#2563eb', border: '#1d4ed8' }, // 7th Grade - Royal Blue
-  '8': { bg: '#7c3aed', border: '#6d28d9' }, // 8th Grade - Purple
-  '7a': { bg: '#0891b2', border: '#0e7490' }, // 7A - Cyan/Teal
+  '6': { bg: '#059669', border: '#047857' },   // 6th Grade - Emerald Green
+  '7': { bg: '#2563eb', border: '#1d4ed8' },   // 7th Grade - Royal Blue
+  '8': { bg: '#7c3aed', border: '#6d28d9' },   // 8th Grade - Purple
+  '7a': { bg: '#0891b2', border: '#0e7490' },  // 7A - Cyan/Teal
   'alg': { bg: '#db2777', border: '#be185d' }, // Algebra - Pink/Magenta
   '678': { bg: '#d97706', border: '#b45309' }  // 678 Combined - Amber/Orange
 };
@@ -31,11 +43,13 @@ const GRADE_PALETTE_FALLBACK = [
   { bg: '#0284c7', border: '#0369a1' }
 ];
 
+let customGradeColors = JSON.parse(localStorage.getItem('gradeStudentColors') || '{}');
+let activeSelectedColor = PALETTE_OPTIONS;
 let currentEditingLessonId = null;
 
+// Modal Navigation Helpers
 function getSortedLessons() {
   return [...lessonsData].sort((a, b) => {
-    // Extract string value before 'T' (e.g. '2026-09-17')
     const dateA = (String(a.date || '').split('T').at(0) || '').trim();
     const dateB = (String(b.date || '').split('T').at(0) || '').trim();
     if (dateA !== dateB) return dateA.localeCompare(dateB);
@@ -88,22 +102,28 @@ function navigateToNextLesson() {
   }
 }
 
+// Color Palette & Grade Mapping Helpers
 function getGradeColor(grade) {
-  if (!grade) return { bg: '#4f46e5', border: '#4338ca' };
+  if (!grade) return PALETTE_OPTIONS;
   const key = String(grade).trim().toLowerCase();
 
-  // 1. Direct key match
+  // 1. Check custom saved user palette database first
+  if (customGradeColors[key]) {
+    return customGradeColors[key];
+  }
+
+  // 2. Direct key match in presets
   if (GRADE_COLORS[key]) {
     return GRADE_COLORS[key];
   }
 
-  // 2. Substring match (longest key first so '678' and '7a' match before '7' or '6')
+  // 3. Substring match (longest key first)
   const keys = Object.keys(GRADE_COLORS).sort((a, b) => b.length - a.length);
   for (const k of keys) {
     if (key.includes(k)) return GRADE_COLORS[k];
   }
 
-  // 3. Fallback hashing for any unmapped grade inputs
+  // 4. Hash fallback for unmapped grade inputs
   let hash = 0;
   for (let i = 0; i < key.length; i++) {
     hash = key.charCodeAt(i) + ((hash << 5) - hash);
@@ -111,6 +131,47 @@ function getGradeColor(grade) {
   return GRADE_PALETTE_FALLBACK[Math.abs(hash) % GRADE_PALETTE_FALLBACK.length];
 }
 
+function renderColorPalette(selectedBg) {
+  const container = document.getElementById('grade-color-palette');
+  const labelEl = document.getElementById('selected-color-label');
+  if (!container) return; // Null-safe guard if container is not present in HTML
+
+  container.innerHTML = PALETTE_OPTIONS.map(opt => {
+    const isSelected = opt.bg.toLowerCase() === (selectedBg || '').toLowerCase();
+    return `
+      <button type="button" onclick="selectGradeColor('${opt.id}')"
+        title="${opt.name}"
+        style="background-color: ${opt.bg};"
+        class="w-5 h-5 rounded-full border-2 transition-transform hover:scale-110 flex items-center justify-center ${isSelected ? 'ring-2 ring-offset-1 ring-slate-800 scale-110 border-white' : 'border-transparent opacity-80 hover:opacity-100'}">
+        ${isSelected ? '<span class="text-white text-[10px] font-bold">✓</span>' : ''}
+      </button>
+    `;
+  }).join('');
+
+  const currentOpt = PALETTE_OPTIONS.find(o => o.bg.toLowerCase() === (selectedBg || '').toLowerCase());
+  if (labelEl) {
+    labelEl.innerText = currentOpt ? currentOpt.name : 'Default';
+  }
+}
+
+function selectGradeColor(paletteId) {
+  const opt = PALETTE_OPTIONS.find(o => o.id === paletteId);
+  if (!opt) return;
+
+  activeSelectedColor = opt;
+  const gradeInput = document.getElementById('lesson-grade');
+  const gradeVal = gradeInput ? gradeInput.value.trim().toLowerCase() : '';
+
+  if (gradeVal) {
+    customGradeColors[gradeVal] = { bg: opt.bg, border: opt.border };
+    localStorage.setItem('gradeStudentColors', JSON.stringify(customGradeColors));
+    renderEventsOnCalendar();
+  }
+
+  renderColorPalette(opt.bg);
+}
+
+// App Initialization
 document.addEventListener('DOMContentLoaded', () => {
   if (typeof FullCalendar === 'undefined') {
     updateStatus('Error: FullCalendar failed to load.', true);
@@ -124,19 +185,16 @@ document.addEventListener('DOMContentLoaded', () => {
 function formatTimeForInput(timeVal) {
   if (!timeVal) return '';
   let str = String(timeVal).trim();
-
   if (str.includes('T')) {
     const parts = str.split('T').at(0);
     if (parts) return parts.substring(0, 5);
   }
-
   if (str.includes(':')) {
     const parts = str.split(':');
     const h = parts.at(0).padStart(2, '0');
     const m = parts.at(1) ? parts.at(1).substring(0, 2) : '00';
     return `${h}:${m}`;
   }
-
   return str;
 }
 
@@ -146,11 +204,11 @@ function initCalendar() {
     initialView: 'timeGridWeek',
     weekends: false,
     allDayText: 'All-day',
-    slotDuration: '00:15:00',      // 15-minute grid slots so 15-min lessons fit cleanly
-    slotLabelInterval: '01:00:00', // Keeps time axis labels clean (7am, 8am, 9am...)
+    slotDuration: '00:15:00',
+    slotLabelInterval: '01:00:00',
     slotMinTime: '07:00:00',
     slotMaxTime: '18:00:00',
-    expandRows: true,              // Fills calendar height evenly
+    expandRows: true,
     selectable: true,
     headerToolbar: {
       left: 'prev,next today',
@@ -170,11 +228,12 @@ function initCalendar() {
       }
     }
   });
+
   calendar.render();
   setTimeout(renderSpecialNotesRow, 100);
 }
 
-// Automatic retry helper for Google Apps Script cold starts
+// Automatic Retry Helper for Apps Script Cold Starts
 async function fetchWithRetry(url, options = {}, retries = 3, delay = 1500) {
   for (let i = 0; i < retries; i++) {
     try {
@@ -195,7 +254,7 @@ async function loadLessons() {
   try {
     const result = await fetchWithRetry(APPS_SCRIPT_URL);
     if (result && result.status === 'success') {
-      lessonsData = result.data;
+      lessonsData = result.data || [];
       renderEventsOnCalendar();
       updateStatus('All changes synced');
     } else {
@@ -219,8 +278,10 @@ function renderEventsOnCalendar() {
     const startIso = `${dateStr}T${startTime}:00`;
     const endIso = `${dateStr}T${endTime}:00`;
 
-    // Fetch custom color based on grade level
-    const color = getGradeColor(lesson.grade);
+    // Fetch custom color from lesson object (cloud synced) or fallback to grade lookup
+    const color = lesson.color
+      ? { bg: lesson.color, border: lesson.color }
+      : getGradeColor(lesson.grade);
 
     return {
       id: String(lesson.id),
@@ -231,10 +292,11 @@ function renderEventsOnCalendar() {
       borderColor: color.border
     };
   });
+
   calendar.addEventSource(events);
 }
 
-// Robust JSON Parsing Helper
+// Robust JSON & Field Parsing Helpers
 function safeJsonParse(raw) {
   if (!raw) return null;
   let parsed = raw;
@@ -244,8 +306,10 @@ function safeJsonParse(raw) {
       if (temp === parsed) break;
       parsed = temp;
     }
-  } catch (e) {
-    return raw;
+  } catch (e) { }
+
+  if (typeof parsed === 'string') {
+    return parsed.split('\n').map(s => s.trim()).filter(Boolean).map(text => ({ text, completed: false }));
   }
   return parsed;
 }
@@ -253,10 +317,8 @@ function safeJsonParse(raw) {
 function parseListField(raw) {
   if (!raw) return [];
   const parsed = safeJsonParse(raw);
-  if (Array.isArray(parsed)) return parsed;
-  if (typeof parsed === 'string') {
-    return parsed.split('\n').map(s => s.trim()).filter(Boolean);
-  }
+  if (Array.isArray(parsed)) return parsed.map(String);
+  if (typeof parsed === 'string') return parsed.split('\n').map(s => s.trim()).filter(Boolean);
   return [];
 }
 
@@ -264,7 +326,12 @@ function parseProcedureField(raw) {
   if (!raw) return [];
   const parsed = safeJsonParse(raw);
   if (Array.isArray(parsed)) {
-    return parsed.map(item => typeof item === 'object' && item !== null ? item : { text: String(item), completed: false });
+    return parsed.map(item => {
+      if (typeof item === 'object' && item !== null) {
+        return { text: String(item.text || ''), completed: Boolean(item.completed) };
+      }
+      return { text: String(item), completed: false };
+    });
   }
   if (typeof parsed === 'string') {
     return parsed.split('\n').map(s => s.trim()).filter(Boolean).map(text => ({ text, completed: false }));
@@ -290,30 +357,30 @@ function parseMaterialsField(raw) {
   return { textList: [], links: [] };
 }
 
-// Auto-commit any text typed into inputs before clicking Save or Duplicate
+// Auto-commit Any Typed Input Before Save or Duplicate
 function commitPendingInputs() {
-  const objInput = document.getElementById('lesson-objectives-input');
+  const objInput = document.getElementById('lesson-objectives-input') || document.getElementById('lesson-objectives');
   if (objInput && objInput.value.trim()) {
     currentObjectives.push(objInput.value.trim());
     objInput.value = '';
     renderObjectivesBadges();
   }
 
-  const assessInput = document.getElementById('lesson-assessment-input');
+  const assessInput = document.getElementById('lesson-assessment-input') || document.getElementById('lesson-assessment');
   if (assessInput && assessInput.value.trim()) {
     currentAssessment.push(assessInput.value.trim());
     assessInput.value = '';
     renderAssessmentBadges();
   }
 
-  const matInput = document.getElementById('lesson-materials-input');
+  const matInput = document.getElementById('lesson-materials-input') || document.getElementById('lesson-materials');
   if (matInput && matInput.value.trim()) {
     currentMaterialsText.push(matInput.value.trim());
     matInput.value = '';
     renderMaterialsBadges();
   }
 
-  const procInput = document.getElementById('lesson-procedure-input');
+  const procInput = document.getElementById('lesson-procedure-input') || document.getElementById('lesson-procedure');
   if (procInput && procInput.value.trim()) {
     currentProcedure.push({ text: procInput.value.trim(), completed: false });
     procInput.value = '';
@@ -324,6 +391,7 @@ function commitPendingInputs() {
 // Render Functions for Reactive Badges
 function renderObjectivesBadges() {
   const container = document.getElementById('objectives-badges-container');
+  if (!container) return;
   if (currentObjectives.length === 0) {
     container.innerHTML = `<span class="text-xs text-slate-400 italic">No objectives added yet.</span>`;
     return;
@@ -343,6 +411,7 @@ function removeObjectiveItem(idx) {
 
 function renderAssessmentBadges() {
   const container = document.getElementById('assessment-badges-container');
+  if (!container) return;
   if (currentAssessment.length === 0) {
     container.innerHTML = `<span class="text-xs text-slate-400 italic">No assessment methods added yet.</span>`;
     return;
@@ -362,13 +431,13 @@ function removeAssessmentItem(idx) {
 
 function renderMaterialsBadges() {
   const container = document.getElementById('materials-badges-container');
+  if (!container) return;
   if (currentMaterialsText.length === 0 && attachedLinks.length === 0) {
     container.innerHTML = `<span class="text-xs text-slate-400 italic">No materials or web links added yet.</span>`;
     return;
   }
 
   let html = '';
-
   html += currentMaterialsText.map((item, idx) => `
     <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-md text-xs font-medium shadow-sm">
       <span>📦 ${escapeHtml(item)}</span>
@@ -401,9 +470,12 @@ function removeAttachedLink(idx) {
 function renderProcedureChecklist() {
   const container = document.getElementById('procedure-checklist-container');
   const countBadge = document.getElementById('procedure-count-badge');
-
   const completedCount = currentProcedure.filter(p => p.completed).length;
-  countBadge.innerText = `${completedCount}/${currentProcedure.length} completed`;
+
+  if (countBadge) {
+    countBadge.innerText = `${completedCount}/${currentProcedure.length} completed`;
+  }
+  if (!container) return;
 
   if (currentProcedure.length === 0) {
     container.innerHTML = `<p class="text-xs text-slate-400 italic py-4 text-center border-2 border-dashed border-slate-200 rounded-lg">No procedure steps added yet. Type a step above and press Enter.</p>`;
@@ -414,7 +486,7 @@ function renderProcedureChecklist() {
     <div class="flex items-center justify-between p-2.5 ${step.completed ? 'bg-slate-100/70 border-slate-200' : 'bg-white border-slate-200'} border rounded-md shadow-sm transition-all group">
       <label class="flex items-start gap-2.5 cursor-pointer min-w-0 flex-1 pr-2">
         <input type="checkbox" ${step.completed ? 'checked' : ''} onchange="toggleProcedureStep(${idx})"
-               class="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer">
+          class="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer">
         <span class="text-xs font-medium ${step.completed ? 'line-through text-slate-400' : 'text-slate-800'} break-words">
           <span class="font-bold text-slate-400 mr-1">${idx + 1}.</span>${escapeHtml(step.text)}
         </span>
@@ -434,6 +506,7 @@ function removeProcedureStep(idx) {
   renderProcedureChecklist();
 }
 
+// Mini Calendar & Duplication Picker
 function renderMiniCalendar() {
   const container = document.getElementById('dup-mini-calendar-days');
   const titleEl = document.getElementById('dup-month-title');
@@ -441,7 +514,6 @@ function renderMiniCalendar() {
 
   const year = miniCalCurrentDate.getFullYear();
   const month = miniCalCurrentDate.getMonth();
-
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   titleEl.innerText = `${monthNames[month]} ${year}`;
 
@@ -449,7 +521,6 @@ function renderMiniCalendar() {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
   let html = '';
-
   for (let i = 0; i < firstDayIndex; i++) {
     html += `<div class="p-1"></div>`;
   }
@@ -458,7 +529,6 @@ function renderMiniCalendar() {
     const monthStr = String(month + 1).padStart(2, '0');
     const dayStr = String(day).padStart(2, '0');
     const fullDateIso = `${year}-${monthStr}-${dayStr}`;
-
     const isSelected = selectedDupDates.includes(fullDateIso);
     const dayOfWeek = new Date(year, month, day).getDay();
     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
@@ -468,15 +538,18 @@ function renderMiniCalendar() {
       : (isWeekend ? 'bg-slate-50 text-slate-400 border-transparent hover:bg-amber-100' : 'bg-white text-slate-700 border-slate-200 hover:bg-amber-100');
 
     html += `
-      <button type="button" onclick="toggleDupDate('${fullDateIso}')" 
-              class="p-1 rounded border text-xs text-center transition-colors ${bgClasses}">
+      <button type="button" onclick="toggleDupDate('${fullDateIso}')"
+        class="p-1 rounded border text-xs text-center transition-colors ${bgClasses}">
         ${day}
       </button>
     `;
   }
 
   container.innerHTML = html;
-  document.getElementById('dup-selected-count').innerText = `${selectedDupDates.length} date(s) selected`;
+  const countEl = document.getElementById('dup-selected-count');
+  if (countEl) {
+    countEl.innerText = `${selectedDupDates.length} date(s) selected`;
+  }
 }
 
 function toggleDupDate(dateStr) {
@@ -494,6 +567,7 @@ function toggleDupDate(dateStr) {
 function openModalForNewPlan(startIso, endIso, isAllDay = false) {
   currentEditingLessonId = null;
   updateModalNavigationControls();
+
   let dateStr = startIso.split('T').at(0);
   let startTimeStr = '09:00';
   let endTimeStr = '10:00';
@@ -515,6 +589,9 @@ function openModalForNewPlan(startIso, endIso, isAllDay = false) {
   document.getElementById('lesson-start').value = startTimeStr;
   document.getElementById('lesson-end').value = endTimeStr;
 
+  activeSelectedColor = PALETTE_OPTIONS;
+  renderColorPalette(activeSelectedColor.bg);
+
   currentObjectives = [];
   currentAssessment = [];
   currentMaterialsText = [];
@@ -526,31 +603,47 @@ function openModalForNewPlan(startIso, endIso, isAllDay = false) {
   renderMaterialsBadges();
   renderProcedureChecklist();
 
-  document.getElementById('inline-link-box').classList.add('hidden');
+  const inlineBox = document.getElementById('inline-link-box');
+  if (inlineBox) inlineBox.classList.add('hidden');
 
   selectedDupDates = [];
   miniCalCurrentDate = new Date();
   renderMiniCalendar();
   renderDupDatesList();
 
-  document.getElementById('duplicate-panel').classList.add('hidden');
-  document.getElementById('duplicate-btn').classList.add('hidden');
-  document.getElementById('delete-btn').classList.add('hidden');
+  const dupPanel = document.getElementById('duplicate-panel');
+  if (dupPanel) dupPanel.classList.add('hidden');
+
+  const dupBtn = document.getElementById('duplicate-btn');
+  if (dupBtn) dupBtn.classList.add('hidden');
+
+  const delBtn = document.getElementById('delete-btn');
+  if (delBtn) delBtn.classList.add('hidden');
+
   document.getElementById('lesson-modal').classList.remove('hidden');
 }
 
 function openModalForEdit(lesson) {
   currentEditingLessonId = lesson.id;
   updateModalNavigationControls();
+
   document.getElementById('modal-title').innerText = 'Edit Lesson Plan';
+
   let dateStr = '';
   if (lesson.date) {
     dateStr = String(lesson.date).split('T').at(0);
   }
+
   document.getElementById('lesson-id').value = lesson.id;
   document.getElementById('lesson-title').value = lesson.title || '';
   document.getElementById('lesson-subject').value = lesson.subject || '';
   document.getElementById('lesson-grade').value = lesson.grade || '';
+
+  // Restore saved color tag from Google Sheets or fallback to grade lookup
+  const savedColor = lesson.color || getGradeColor(lesson.grade).bg;
+  activeSelectedColor = { bg: savedColor, border: savedColor };
+  renderColorPalette(savedColor);
+
   document.getElementById('lesson-date').value = dateStr;
   document.getElementById('lesson-start').value = formatTimeForInput(lesson.startTime);
   document.getElementById('lesson-end').value = formatTimeForInput(lesson.endTime);
@@ -568,25 +661,35 @@ function openModalForEdit(lesson) {
   renderMaterialsBadges();
   renderProcedureChecklist();
 
-  document.getElementById('inline-link-box').classList.add('hidden');
+  const inlineBox = document.getElementById('inline-link-box');
+  if (inlineBox) inlineBox.classList.add('hidden');
 
   selectedDupDates = [];
   miniCalCurrentDate = new Date();
   renderMiniCalendar();
   renderDupDatesList();
 
-  document.getElementById('duplicate-panel').classList.add('hidden');
-  document.getElementById('duplicate-btn').classList.remove('hidden');
-  document.getElementById('delete-btn').classList.remove('hidden');
+  const dupPanel = document.getElementById('duplicate-panel');
+  if (dupPanel) dupPanel.classList.add('hidden');
+
+  const dupBtn = document.getElementById('duplicate-btn');
+  if (dupBtn) dupBtn.classList.remove('hidden');
+
+  const delBtn = document.getElementById('delete-btn');
+  if (delBtn) delBtn.classList.remove('hidden');
+
   document.getElementById('lesson-modal').classList.remove('hidden');
 }
 
 function renderDupDatesList() {
   const container = document.getElementById('dup-dates-list');
+  if (!container) return;
+
   if (selectedDupDates.length === 0) {
     container.innerHTML = `<span class="text-xs text-amber-700 italic">No target dates selected yet.</span>`;
     return;
   }
+
   container.innerHTML = selectedDupDates.map((d, i) => `
     <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-900 border border-amber-300 rounded text-xs font-semibold">
       ${d}
@@ -601,20 +704,28 @@ function removeDupDate(index) {
   renderMiniCalendar();
 }
 
+// Event Listeners Setup
 function setupEventListeners() {
   const modal = document.getElementById('lesson-modal');
   const form = document.getElementById('lesson-form');
 
-  document.getElementById('close-modal').onclick = () => modal.classList.add('hidden');
-  document.getElementById('cancel-btn').onclick = () => modal.classList.add('hidden');
-  document.getElementById('prev-lesson-btn').onclick = navigateToPrevLesson;
-  document.getElementById('next-lesson-btn').onclick = navigateToNextLesson;
+  const closeBtn = document.getElementById('close-modal');
+  if (closeBtn) closeBtn.onclick = () => modal.classList.add('hidden');
 
+  const cancelBtn = document.getElementById('cancel-btn');
+  if (cancelBtn) cancelBtn.onclick = () => modal.classList.add('hidden');
+
+  const prevLessonBtn = document.getElementById('prev-lesson-btn');
+  if (prevLessonBtn) prevLessonBtn.onclick = navigateToPrevLesson;
+
+  const nextLessonBtn = document.getElementById('next-lesson-btn');
+  if (nextLessonBtn) nextLessonBtn.onclick = navigateToNextLesson;
+
+  // Arrow Keys Navigation Listener
   document.addEventListener('keydown', (e) => {
-    const modal = document.getElementById('lesson-modal');
     if (!modal || modal.classList.contains('hidden')) return;
 
-    // Ignore arrow keys while typing inside inputs or textareas
+    // Ignore arrow keys while typing inside inputs, textareas, or contenteditables
     const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
     if (activeTag === 'input' || activeTag === 'textarea' || document.activeElement.isContentEditable) {
       return;
@@ -629,277 +740,362 @@ function setupEventListeners() {
     }
   });
 
-  document.getElementById('lesson-objectives-input').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      const val = e.target.value.trim();
-      if (val) {
-        currentObjectives.push(val);
-        e.target.value = '';
-        renderObjectivesBadges();
+  // Dynamic Color Palette Matching on Grade/Student Input
+  const gradeInput = document.getElementById('lesson-grade');
+  if (gradeInput) {
+    gradeInput.addEventListener('input', (e) => {
+      const val = e.target.value.trim().toLowerCase();
+      if (val && customGradeColors[val]) {
+        activeSelectedColor = customGradeColors[val];
+      } else if (val) {
+        activeSelectedColor = getGradeColor(val);
       }
-    }
-  });
+      renderColorPalette(activeSelectedColor.bg);
+    });
+  }
 
-  document.getElementById('lesson-assessment-input').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      const val = e.target.value.trim();
-      if (val) {
-        currentAssessment.push(val);
-        e.target.value = '';
-        renderAssessmentBadges();
+  // Reactive Enter Key Listeners (Null-Guarded)
+  const objInput = document.getElementById('lesson-objectives-input') || document.getElementById('lesson-objectives');
+  if (objInput) {
+    objInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const val = e.target.value.trim();
+        if (val) {
+          currentObjectives.push(val);
+          e.target.value = '';
+          renderObjectivesBadges();
+        }
       }
-    }
-  });
+    });
+  }
 
-  document.getElementById('lesson-materials-input').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      const val = e.target.value.trim();
-      if (val) {
-        currentMaterialsText.push(val);
-        e.target.value = '';
-        renderMaterialsBadges();
+  const assessInput = document.getElementById('lesson-assessment-input') || document.getElementById('lesson-assessment');
+  if (assessInput) {
+    assessInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const val = e.target.value.trim();
+        if (val) {
+          currentAssessment.push(val);
+          e.target.value = '';
+          renderAssessmentBadges();
+        }
       }
-    }
-  });
+    });
+  }
 
-  document.getElementById('lesson-procedure-input').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      const val = e.target.value.trim();
-      if (val) {
-        currentProcedure.push({ text: val, completed: false });
-        e.target.value = '';
-        renderProcedureChecklist();
+  const matInput = document.getElementById('lesson-materials-input') || document.getElementById('lesson-materials');
+  if (matInput) {
+    matInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const val = e.target.value.trim();
+        if (val) {
+          currentMaterialsText.push(val);
+          e.target.value = '';
+          renderMaterialsBadges();
+        }
       }
-    }
-  });
+    });
+  }
 
+  const procInput = document.getElementById('lesson-procedure-input') || document.getElementById('lesson-procedure');
+  if (procInput) {
+    procInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const val = e.target.value.trim();
+        if (val) {
+          currentProcedure.push({ text: val, completed: false });
+          e.target.value = '';
+          renderProcedureChecklist();
+        }
+      }
+    });
+  }
+
+  // Web Links Controls
   const inlineLinkBox = document.getElementById('inline-link-box');
-  document.getElementById('toggle-add-link-btn').onclick = () => {
-    document.getElementById('link-title-input').value = '';
-    document.getElementById('link-url-input').value = '';
-    inlineLinkBox.classList.toggle('hidden');
-  };
-  document.getElementById('cancel-link-btn').onclick = () => inlineLinkBox.classList.add('hidden');
-
-  document.getElementById('confirm-link-btn').onclick = () => {
-    const titleInput = document.getElementById('link-title-input');
-    const urlInput = document.getElementById('link-url-input');
-
-    const titleVal = titleInput.value.trim();
-    let urlVal = urlInput.value.trim();
-
-    if (!titleVal || !urlVal) {
-      alert('Please enter both a link title and a URL.');
-      return;
-    }
-
-    if (!/^https?:\/\//i.test(urlVal)) {
-      urlVal = 'https://' + urlVal;
-    }
-
-    attachedLinks.push({ title: titleVal, url: urlVal });
-    titleInput.value = '';
-    urlInput.value = '';
-    inlineLinkBox.classList.add('hidden');
-    renderMaterialsBadges();
-  };
-
-  document.getElementById('prev-dup-month-btn').onclick = () => {
-    miniCalCurrentDate.setMonth(miniCalCurrentDate.getMonth() - 1);
-    renderMiniCalendar();
-  };
-
-  document.getElementById('next-dup-month-btn').onclick = () => {
-    miniCalCurrentDate.setMonth(miniCalCurrentDate.getMonth() + 1);
-    renderMiniCalendar();
-  };
-
-  document.getElementById('clear-dup-dates-btn').onclick = () => {
-    selectedDupDates = [];
-    renderMiniCalendar();
-    renderDupDatesList();
-  };
-
-  document.getElementById('add-range-btn').onclick = () => {
-    const startVal = document.getElementById('dup-range-start').value;
-    const endVal = document.getElementById('dup-range-end').value;
-
-    if (!startVal || !endVal) {
-      alert('Please select both a Start Date and an End Date for the range.');
-      return;
-    }
-
-    let current = new Date(startVal + 'T00:00:00');
-    const end = new Date(endVal + 'T00:00:00');
-
-    if (current > end) {
-      alert('Start Date must be before or equal to End Date.');
-      return;
-    }
-
-    while (current <= end) {
-      const year = current.getFullYear();
-      const month = String(current.getMonth() + 1).padStart(2, '0');
-      const day = String(current.getDate()).padStart(2, '0');
-      const dateStr = `${year}-${month}-${day}`;
-
-      if (!selectedDupDates.includes(dateStr)) {
-        selectedDupDates.push(dateStr);
-      }
-      current.setDate(current.getDate() + 1);
-    }
-
-    selectedDupDates.sort();
-    document.getElementById('dup-range-start').value = '';
-    document.getElementById('dup-range-end').value = '';
-    renderMiniCalendar();
-    renderDupDatesList();
-  };
-
-  document.getElementById('duplicate-btn').onclick = () => {
-    const panel = document.getElementById('duplicate-panel');
-    panel.classList.toggle('hidden');
-  };
-
-  document.getElementById('confirm-dup-btn').onclick = async () => {
-    commitPendingInputs();
-
-    if (selectedDupDates.length === 0) {
-      alert('Please select at least one target date on the calendar.');
-      return;
-    }
-
-    const basePayload = {
-      title: document.getElementById('lesson-title').value,
-      subject: document.getElementById('lesson-subject').value,
-      grade: document.getElementById('lesson-grade').value,
-      startTime: document.getElementById('lesson-start').value,
-      endTime: document.getElementById('lesson-end').value,
-      objectives: JSON.stringify(currentObjectives),
-      procedure: JSON.stringify(currentProcedure),
-      assessment: JSON.stringify(currentAssessment),
-      materials: JSON.stringify({ textList: currentMaterialsText, links: attachedLinks }),
-      status: 'Scheduled'
+  const toggleLinkBtn = document.getElementById('toggle-add-link-btn');
+  if (toggleLinkBtn) {
+    toggleLinkBtn.onclick = () => {
+      const titleIn = document.getElementById('link-title-input');
+      const urlIn = document.getElementById('link-url-input');
+      if (titleIn) titleIn.value = '';
+      if (urlIn) urlIn.value = '';
+      if (inlineLinkBox) inlineLinkBox.classList.toggle('hidden');
     };
+  }
 
-    modal.classList.add('hidden');
-    updateStatus(`Duplicating plan to ${selectedDupDates.length} date(s)...`);
-
-    try {
-      for (let i = 0; i < selectedDupDates.length; i++) {
-        const targetDate = selectedDupDates[i];
-        const dupPayload = {
-          ...basePayload,
-          id: 'lp_' + Date.now() + '_' + i,
-          date: targetDate
-        };
-        await fetch(APPS_SCRIPT_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({ action: 'save', payload: dupPayload })
-        });
-      }
-      await loadLessons();
-      updateStatus('Duplication complete! All changes synced');
-    } catch (err) {
-      console.error(err);
-      updateStatus('Error duplicating plan', true);
-    }
-  };
-
-  form.onsubmit = async (e) => {
-    e.preventDefault();
-    commitPendingInputs();
-
-    const payload = {
-      id: document.getElementById('lesson-id').value,
-      title: document.getElementById('lesson-title').value,
-      subject: document.getElementById('lesson-subject').value,
-      grade: document.getElementById('lesson-grade').value,
-      date: document.getElementById('lesson-date').value,
-      startTime: document.getElementById('lesson-start').value,
-      endTime: document.getElementById('lesson-end').value,
-      objectives: JSON.stringify(currentObjectives),
-      procedure: JSON.stringify(currentProcedure),
-      assessment: JSON.stringify(currentAssessment),
-      materials: JSON.stringify({ textList: currentMaterialsText, links: attachedLinks }),
-      status: 'Scheduled'
+  const cancelLinkBtn = document.getElementById('cancel-link-btn');
+  if (cancelLinkBtn) {
+    cancelLinkBtn.onclick = () => {
+      if (inlineLinkBox) inlineLinkBox.classList.add('hidden');
     };
+  }
 
-    modal.classList.add('hidden');
-    updateStatus('Saving to Google Sheets...');
+  const confirmLinkBtn = document.getElementById('confirm-link-btn');
+  if (confirmLinkBtn) {
+    confirmLinkBtn.onclick = () => {
+      const titleInput = document.getElementById('link-title-input');
+      const urlInput = document.getElementById('link-url-input');
+      const titleVal = titleInput ? titleInput.value.trim() : '';
+      let urlVal = urlInput ? urlInput.value.trim() : '';
 
-    try {
-      const response = await fetch(APPS_SCRIPT_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: 'save', payload })
-      });
-      const result = await response.json();
-      if (result.status === 'success') {
-        await loadLessons();
-      } else {
-        updateStatus(`Save error: ${result.message}`, true);
+      if (!titleVal || !urlVal) {
+        alert('Please enter both a link title and a URL.');
+        return;
       }
-    } catch (err) {
-      console.error(err);
-      updateStatus('Error saving plan', true);
-    }
-  };
 
-  document.getElementById('delete-btn').onclick = () => {
-    const id = document.getElementById('lesson-id').value;
-    showConfirmModal(
-      'Delete Lesson Plan?',
-      'Are you sure you want to delete this lesson plan from your schedule?',
-      async () => {
-        modal.classList.add('hidden');
-        updateStatus('Deleting plan...');
-        try {
+      if (!/^https?:\/\//i.test(urlVal)) {
+        urlVal = 'https://' + urlVal;
+      }
+
+      attachedLinks.push({ title: titleVal, url: urlVal });
+      if (titleInput) titleInput.value = '';
+      if (urlInput) urlInput.value = '';
+      if (inlineLinkBox) inlineLinkBox.classList.add('hidden');
+      renderMaterialsBadges();
+    };
+  }
+
+  // Duplication Navigation
+  const prevDupBtn = document.getElementById('prev-dup-month-btn');
+  if (prevDupBtn) {
+    prevDupBtn.onclick = () => {
+      miniCalCurrentDate.setMonth(miniCalCurrentDate.getMonth() - 1);
+      renderMiniCalendar();
+    };
+  }
+
+  const nextDupBtn = document.getElementById('next-dup-month-btn');
+  if (nextDupBtn) {
+    nextDupBtn.onclick = () => {
+      miniCalCurrentDate.setMonth(miniCalCurrentDate.getMonth() + 1);
+      renderMiniCalendar();
+    };
+  }
+
+  const clearDupBtn = document.getElementById('clear-dup-dates-btn');
+  if (clearDupBtn) {
+    clearDupBtn.onclick = () => {
+      selectedDupDates = [];
+      renderMiniCalendar();
+      renderDupDatesList();
+    };
+  }
+
+  const addRangeBtn = document.getElementById('add-range-btn');
+  if (addRangeBtn) {
+    addRangeBtn.onclick = () => {
+      const startVal = document.getElementById('dup-range-start').value;
+      const endVal = document.getElementById('dup-range-end').value;
+
+      if (!startVal || !endVal) {
+        alert('Please select both a Start Date and an End Date for the range.');
+        return;
+      }
+
+      let current = new Date(startVal + 'T00:00:00');
+      const end = new Date(endVal + 'T00:00:00');
+
+      if (current > end) {
+        alert('Start Date must be before or equal to End Date.');
+        return;
+      }
+
+      while (current <= end) {
+        const year = current.getFullYear();
+        const month = String(current.getMonth() + 1).padStart(2, '0');
+        const day = String(current.getDate()).padStart(2, '0');
+        const dateStr = `${year}-${month}-${day}`;
+
+        if (!selectedDupDates.includes(dateStr)) {
+          selectedDupDates.push(dateStr);
+        }
+        current.setDate(current.getDate() + 1);
+      }
+
+      selectedDupDates.sort();
+      document.getElementById('dup-range-start').value = '';
+      document.getElementById('dup-range-end').value = '';
+      renderMiniCalendar();
+      renderDupDatesList();
+    };
+  }
+
+  const dupBtnToggle = document.getElementById('duplicate-btn');
+  if (dupBtnToggle) {
+    dupBtnToggle.onclick = () => {
+      const panel = document.getElementById('duplicate-panel');
+      if (panel) panel.classList.toggle('hidden');
+    };
+  }
+
+  const confirmDupBtn = document.getElementById('confirm-dup-btn');
+  if (confirmDupBtn) {
+    confirmDupBtn.onclick = async () => {
+      commitPendingInputs();
+      if (selectedDupDates.length === 0) {
+        alert('Please select at least one target date on the calendar.');
+        return;
+      }
+
+      const basePayload = {
+        title: document.getElementById('lesson-title').value,
+        subject: document.getElementById('lesson-subject').value,
+        grade: document.getElementById('lesson-grade').value,
+        color: activeSelectedColor ? activeSelectedColor.bg : '',
+        startTime: document.getElementById('lesson-start').value,
+        endTime: document.getElementById('lesson-end').value,
+        objectives: JSON.stringify(currentObjectives),
+        procedure: JSON.stringify(currentProcedure),
+        assessment: JSON.stringify(currentAssessment),
+        materials: JSON.stringify({ textList: currentMaterialsText, links: attachedLinks }),
+        status: 'Scheduled'
+      };
+
+      modal.classList.add('hidden');
+      updateStatus(`Duplicating plan to ${selectedDupDates.length} date(s)...`);
+
+      try {
+        for (let i = 0; i < selectedDupDates.length; i++) {
+          const targetDate = selectedDupDates[i];
+          const dupPayload = {
+            ...basePayload,
+            id: 'lp_' + Date.now() + '_' + i,
+            date: targetDate
+          };
+
           await fetch(APPS_SCRIPT_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            body: JSON.stringify({ action: 'delete', payload: { id } })
+            body: JSON.stringify({ action: 'save', payload: dupPayload })
           });
-          await loadLessons();
-        } catch (err) {
-          console.error(err);
-          updateStatus('Error deleting plan', true);
         }
+
+        await loadLessons();
+        updateStatus('Duplication complete! All changes synced');
+      } catch (err) {
+        console.error(err);
+        updateStatus('Error duplicating plan', true);
       }
-    );
-  };
+    };
+  }
 
-  document.getElementById('confirm-cancel-btn').onclick = hideConfirmModal;
-  document.getElementById('confirm-action-btn').onclick = () => {
-    if (confirmCallback) confirmCallback();
-    hideConfirmModal();
-  };
+  // Form Submission Handler
+  if (form) {
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      commitPendingInputs();
 
+      const payload = {
+        id: document.getElementById('lesson-id').value,
+        title: document.getElementById('lesson-title').value,
+        subject: document.getElementById('lesson-subject').value,
+        grade: document.getElementById('lesson-grade').value,
+        color: activeSelectedColor ? activeSelectedColor.bg : '',
+        date: document.getElementById('lesson-date').value,
+        startTime: document.getElementById('lesson-start').value,
+        endTime: document.getElementById('lesson-end').value,
+        objectives: JSON.stringify(currentObjectives),
+        procedure: JSON.stringify(currentProcedure),
+        assessment: JSON.stringify(currentAssessment),
+        materials: JSON.stringify({ textList: currentMaterialsText, links: attachedLinks }),
+        status: 'Scheduled'
+      };
+
+      modal.classList.add('hidden');
+      updateStatus('Saving to Google Sheets...');
+
+      try {
+        const response = await fetch(APPS_SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'save', payload })
+        });
+
+        const result = await response.json();
+        if (result.status === 'success') {
+          await loadLessons();
+        } else {
+          updateStatus(`Save error: ${result.message}`, true);
+        }
+      } catch (err) {
+        console.error(err);
+        updateStatus('Error saving plan', true);
+      }
+    };
+  }
+
+  // Delete Action
+  const delBtn = document.getElementById('delete-btn');
+  if (delBtn) {
+    delBtn.onclick = () => {
+      const id = document.getElementById('lesson-id').value;
+      showConfirmModal(
+        'Delete Lesson Plan?',
+        'Are you sure you want to delete this lesson plan from your schedule?',
+        async () => {
+          modal.classList.add('hidden');
+          updateStatus('Deleting plan...');
+          try {
+            await fetch(APPS_SCRIPT_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+              body: JSON.stringify({ action: 'delete', payload: { id } })
+            });
+            await loadLessons();
+          } catch (err) {
+            console.error(err);
+            updateStatus('Error deleting plan', true);
+          }
+        }
+      );
+    };
+  }
+
+  const confirmCancelBtn = document.getElementById('confirm-cancel-btn');
+  if (confirmCancelBtn) confirmCancelBtn.onclick = hideConfirmModal;
+
+  const confirmActionBtn = document.getElementById('confirm-action-btn');
+  if (confirmActionBtn) {
+    confirmActionBtn.onclick = () => {
+      if (confirmCallback) confirmCallback();
+      hideConfirmModal();
+    };
+  }
+
+  // Note Modal Actions
   const noteModal = document.getElementById('note-modal');
-  document.getElementById('close-note-modal').onclick = () => noteModal.classList.add('hidden');
-  document.getElementById('done-note-btn').onclick = () => noteModal.classList.add('hidden');
+  const closeNoteBtn = document.getElementById('close-note-modal');
+  if (closeNoteBtn) closeNoteBtn.onclick = () => noteModal.classList.add('hidden');
 
-  document.getElementById('note-form').onsubmit = (e) => {
-    e.preventDefault();
-    const input = document.getElementById('new-note-input');
-    const noteText = input.value.trim();
-    if (noteText && activeNoteDate) {
-      const notes = getNotesForDate(activeNoteDate);
-      notes.push(noteText);
-      specialNotes[activeNoteDate] = notes;
-      localStorage.setItem('specialNotes', JSON.stringify(specialNotes));
-      input.value = '';
-      renderNoteListModal();
-      renderSpecialNotesRow();
-    }
-  };
+  const doneNoteBtn = document.getElementById('done-note-btn');
+  if (doneNoteBtn) doneNoteBtn.onclick = () => noteModal.classList.add('hidden');
+
+  const noteForm = document.getElementById('note-form');
+  if (noteForm) {
+    noteForm.onsubmit = (e) => {
+      e.preventDefault();
+      const input = document.getElementById('new-note-input');
+      const noteText = input ? input.value.trim() : '';
+
+      if (noteText && activeNoteDate) {
+        const notes = getNotesForDate(activeNoteDate);
+        notes.push(noteText);
+        specialNotes[activeNoteDate] = notes;
+        localStorage.setItem('specialNotes', JSON.stringify(specialNotes));
+        if (input) input.value = '';
+        renderNoteListModal();
+        renderSpecialNotesRow();
+      }
+    };
+  }
 }
 
+// Confirm Modal Helpers
 function showConfirmModal(title, message, onConfirm) {
   document.getElementById('confirm-modal-title').innerText = title;
   document.getElementById('confirm-modal-message').innerText = message;
@@ -908,16 +1104,19 @@ function showConfirmModal(title, message, onConfirm) {
 }
 
 function hideConfirmModal() {
-  document.getElementById('confirm-modal').classList.add('hidden');
+  const modal = document.getElementById('confirm-modal');
+  if (modal) modal.classList.add('hidden');
   confirmCallback = null;
 }
 
 function updateStatus(message, isError = false) {
   const statusEl = document.getElementById('sync-status');
+  if (!statusEl) return;
   statusEl.innerText = `Status: ${message}`;
   statusEl.className = `text-sm font-medium ${isError ? 'text-red-500' : 'text-slate-500'}`;
 }
 
+// Special Notes Helpers
 function getNotesForDate(dateStr) {
   const val = specialNotes[dateStr];
   if (!val) return [];
@@ -927,14 +1126,18 @@ function getNotesForDate(dateStr) {
 
 function openNoteModal(dateStr) {
   activeNoteDate = dateStr;
-  document.getElementById('note-modal-subtitle').innerText = `Date: ${dateStr}`;
-  document.getElementById('new-note-input').value = '';
+  const subEl = document.getElementById('note-modal-subtitle');
+  if (subEl) subEl.innerText = `Date: ${dateStr}`;
+  const inputEl = document.getElementById('new-note-input');
+  if (inputEl) inputEl.value = '';
   renderNoteListModal();
-  document.getElementById('note-modal').classList.remove('hidden');
+  const noteModal = document.getElementById('note-modal');
+  if (noteModal) noteModal.classList.remove('hidden');
 }
 
 function renderNoteListModal() {
   const container = document.getElementById('note-list');
+  if (!container) return;
   const notes = getNotesForDate(activeNoteDate);
 
   if (notes.length === 0) {
@@ -991,7 +1194,6 @@ function renderSpecialNotesRow() {
 
   const dayCells = headerTable.querySelectorAll('th.fc-col-header-cell[data-date]');
   const visibleDates = Array.from(dayCells).map(cell => cell.getAttribute('data-date')).filter(Boolean);
-
   if (visibleDates.length === 0) return;
 
   let html = `
@@ -1006,10 +1208,10 @@ function renderSpecialNotesRow() {
     const notes = getNotesForDate(dateStr);
     html += `
       <td data-note-date="${dateStr}" class="p-1 text-center cursor-pointer hover:bg-indigo-50/50 transition-colors bg-white border-l border-slate-200 align-middle group"
-          title="Click to manage notes for ${dateStr}">
+        title="Click to manage notes for ${dateStr}">
         <div class="flex flex-wrap gap-1 items-center justify-center min-h-[28px]">
           ${notes.length > 0
-        ? notes.map(n => `<span class="px-1.5 py-0.5 bg-amber-100 text-amber-800 border border-amber-300 rounded font-semibold text-[11px] shadow-sm">${escapeHtml(n)}</span>`).join('')
+        ? notes.map(n => `<span class="px-1.5 py-0.5 bg-amber-100 text-amber-800 border border-amber-300 rounded font-semibold text-[11px] shadow-sm">\${escapeHtml(n)}</span>`).join('')
         : `<span class="text-slate-300 group-hover:text-indigo-600 text-[11px] font-normal">+ Add note</span>`
       }
         </div>
