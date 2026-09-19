@@ -625,16 +625,16 @@ function toggleDupDate(dateStr) {
   renderDupDatesList();
 }
 
+// ==========================================================
+// --- Daily Assessments & Checks Grid Rendering Function ---
+// ==========================================================
+
 function formatDateToIso(dateObj) {
   const y = dateObj.getFullYear();
   const m = String(dateObj.getMonth() + 1).padStart(2, '0');
   const d = String(dateObj.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
 }
-
-// ==========================================================
-// --- Daily Assessments & Checks Grid Rendering Function ---
-// ==========================================================
 
 function renderDailyAssessmentsGrid() {
   const dateIso = formatDateToIso(currentAssessmentViewDate);
@@ -648,7 +648,7 @@ function renderDailyAssessmentsGrid() {
 
   if (!container) return;
 
-  // Filter lessons matching the selected date and sort chronologically by startTime [5]
+  // 1. Filter lessons for the selected day and sort chronologically
   const dayLessons = lessonsData.filter(l => {
     const lDate = String(l.date || '').split('T').at(0).trim();
     return lDate === dateIso;
@@ -662,51 +662,74 @@ function renderDailyAssessmentsGrid() {
     container.innerHTML = `
       <div class="col-span-full py-12 text-center border-2 border-dashed border-slate-200 rounded-xl bg-slate-50">
         <p class="text-sm font-semibold text-slate-500">No lessons scheduled for this date.</p>
-        <p class="text-xs text-slate-400 mt-1">Use the arrows above to check previous or upcoming days.</p>
+        <p class="text-xs text-slate-400 mt-1">Use the arrow buttons or Left/Right arrow keys to view other days.</p>
       </div>
     `;
     return;
   }
 
-  container.innerHTML = dayLessons.map(lesson => {
-    const color = lesson.color ? { bg: lesson.color } : getGradeColor(lesson.grade);
-    const assessments = parseListField(lesson.assessment); // Parsed using existing parser [6]
-    const startTime = formatTimeForInput(lesson.startTime) || '09:00';
-    const endTime = formatTimeForInput(lesson.endTime) || '10:00';
+  // 2. Group lessons by Subject
+  const subjectGroups = {};
+  dayLessons.forEach(lesson => {
+    const subjKey = (lesson.subject || 'General').trim();
+    if (!subjectGroups[subjKey]) {
+      subjectGroups[subjKey] = [];
+    }
+    subjectGroups[subjKey].push(lesson);
+  });
+
+  // 3. Render one grid box per Subject
+  container.innerHTML = Object.entries(subjectGroups).map(([subjectName, lessons]) => {
+    const primaryGrade = lessons.find(l => l.grade)?.grade || '';
+    const customColor = lessons.find(l => l.color)?.color;
+    const color = customColor ? { bg: customColor } : getGradeColor(primaryGrade);
 
     return `
-      <div class="bg-white border border-slate-200 rounded-lg p-3.5 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between">
+      <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between">
         <div>
-          <!-- Lesson Header -->
-          <div class="flex items-center justify-between gap-2 border-b pb-2 mb-2">
+          <!-- Subject Box Header -->
+          <div class="flex items-center justify-between pb-2.5 mb-3 border-b border-slate-200">
             <div class="flex items-center gap-2 min-w-0">
-              <span class="w-3 h-3 rounded-full flex-shrink-0" style="background-color: ${color.bg};"></span>
-              <h3 class="font-bold text-sm text-slate-800 truncate" title="${escapeHtml(lesson.title || 'Untitled')}">
-                ${escapeHtml(lesson.title || 'Untitled')}
+              <span class="w-3.5 h-3.5 rounded-full flex-shrink-0" style="background-color: ${color.bg};"></span>
+              <h3 class="font-bold text-base text-slate-900 truncate">
+                ${escapeHtml(subjectName)}
               </h3>
             </div>
-            <span class="text-[11px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded flex-shrink-0">
-              ${escapeHtml(lesson.subject || 'General')} ${lesson.grade ? `(\${escapeHtml(lesson.grade)})` : ''}
+            <span class="text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-100 px-2.5 py-0.5 rounded-full flex-shrink-0">
+              ${lessons.length} ${lessons.length === 1 ? 'Lesson' : 'Lessons'}
             </span>
           </div>
 
-          <!-- Time slot -->
-          <div class="text-[11px] text-slate-400 font-medium mb-2.5 flex items-center gap-1">
-            ⏰ <span>${startTime} - ${endTime}</span>
-          </div>
+          <!-- Lessons & Assessments inside this Subject -->
+          <div class="space-y-4">
+            ${lessons.map(lesson => {
+              const startTime = formatTimeForInput(lesson.startTime) || '09:00';
+              const endTime = formatTimeForInput(lesson.endTime) || '10:00';
+              const assessments = parseListField(lesson.assessment);
 
-          <!-- Assessment Items -->
-          <div class="space-y-1.5">
-            <span class="text-[11px] font-bold text-slate-600 uppercase tracking-wider block">Assessments & Checks:</span>
-            ${assessments.length > 0
-        ? assessments.map(item => `
-                  <div class="flex items-start gap-2 p-1.5 bg-purple-50/60 border border-purple-100 rounded text-xs text-purple-900">
-                    <span class="text-purple-500 mt-0.5">📊</span>
-                    <span class="font-medium break-words">\${escapeHtml(item)}</span>
+              return `
+                <div class="bg-slate-50/70 p-3 rounded-lg border border-slate-100 space-y-2">
+                  <div class="flex items-center justify-between text-xs font-semibold text-slate-700">
+                    <span class="font-bold text-slate-800">${escapeHtml(lesson.title || 'Untitled')}</span>
+                    <span class="text-[11px] text-slate-500 font-medium bg-white px-2 py-0.5 border border-slate-200 rounded">
+                      ⏰ ${startTime} - ${endTime}${lesson.grade ? ` | ${escapeHtml(lesson.grade)}` : ''}
+                    </span>
                   </div>
-                `).join('')
-        : `<p class="text-xs text-slate-400 italic">No specific assessments listed.</p>`
-      }
+
+                  <div class="space-y-1">
+                    ${assessments.length > 0
+                      ? assessments.map(item => `
+                      <div class="flex items-start gap-2 p-1.5 bg-purple-50 border border-purple-100 rounded text-xs text-purple-900">
+                        <span class="text-purple-500 mt-0.5">📊</span>
+                        <span class="font-medium break-words">${escapeHtml(item)}</span>
+                      </div>
+                    `).join('')
+                      : `<p class="text-xs text-slate-400 italic">No specific assessments listed.</p>`
+                    }
+                  </div>
+                </div>
+              `;
+            }).join('')}
           </div>
         </div>
       </div>
