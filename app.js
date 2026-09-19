@@ -8,6 +8,7 @@ let confirmCallback = null;
 let selectedDupDates = [];
 let miniCalCurrentDate = new Date();
 let draggedStepIndex = null;
+let currentAssessmentViewDate = new Date();
 
 // Reactive Form Items State
 let currentObjectives = [];
@@ -624,6 +625,95 @@ function toggleDupDate(dateStr) {
   renderDupDatesList();
 }
 
+function formatDateToIso(dateObj) {
+  const y = dateObj.getFullYear();
+  const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const d = String(dateObj.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+// ==========================================================
+// --- Daily Assessments & Checks Grid Rendering Function ---
+// ==========================================================
+
+function renderDailyAssessmentsGrid() {
+  const dateIso = formatDateToIso(currentAssessmentViewDate);
+  const container = document.getElementById('assessments-grid-container');
+  const dateDisplay = document.getElementById('assessments-date-display');
+
+  if (dateDisplay) {
+    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    dateDisplay.innerText = currentAssessmentViewDate.toLocaleDateString(undefined, options);
+  }
+
+  if (!container) return;
+
+  // Filter lessons matching the selected date and sort chronologically by startTime [5]
+  const dayLessons = lessonsData.filter(l => {
+    const lDate = String(l.date || '').split('T').at(0).trim();
+    return lDate === dateIso;
+  }).sort((a, b) => {
+    const tA = String(a.startTime || '').trim();
+    const tB = String(b.startTime || '').trim();
+    return tA.localeCompare(tB);
+  });
+
+  if (dayLessons.length === 0) {
+    container.innerHTML = `
+      <div class="col-span-full py-12 text-center border-2 border-dashed border-slate-200 rounded-xl bg-slate-50">
+        <p class="text-sm font-semibold text-slate-500">No lessons scheduled for this date.</p>
+        <p class="text-xs text-slate-400 mt-1">Use the arrows above to check previous or upcoming days.</p>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = dayLessons.map(lesson => {
+    const color = lesson.color ? { bg: lesson.color } : getGradeColor(lesson.grade);
+    const assessments = parseListField(lesson.assessment); // Parsed using existing parser [6]
+    const startTime = formatTimeForInput(lesson.startTime) || '09:00';
+    const endTime = formatTimeForInput(lesson.endTime) || '10:00';
+
+    return `
+      <div class="bg-white border border-slate-200 rounded-lg p-3.5 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between">
+        <div>
+          <!-- Lesson Header -->
+          <div class="flex items-center justify-between gap-2 border-b pb-2 mb-2">
+            <div class="flex items-center gap-2 min-w-0">
+              <span class="w-3 h-3 rounded-full flex-shrink-0" style="background-color: ${color.bg};"></span>
+              <h3 class="font-bold text-sm text-slate-800 truncate" title="${escapeHtml(lesson.title || 'Untitled')}">
+                ${escapeHtml(lesson.title || 'Untitled')}
+              </h3>
+            </div>
+            <span class="text-[11px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded flex-shrink-0">
+              ${escapeHtml(lesson.subject || 'General')} ${lesson.grade ? `(\${escapeHtml(lesson.grade)})` : ''}
+            </span>
+          </div>
+
+          <!-- Time slot -->
+          <div class="text-[11px] text-slate-400 font-medium mb-2.5 flex items-center gap-1">
+            ⏰ <span>${startTime} - ${endTime}</span>
+          </div>
+
+          <!-- Assessment Items -->
+          <div class="space-y-1.5">
+            <span class="text-[11px] font-bold text-slate-600 uppercase tracking-wider block">Assessments & Checks:</span>
+            ${assessments.length > 0
+        ? assessments.map(item => `
+                  <div class="flex items-start gap-2 p-1.5 bg-purple-50/60 border border-purple-100 rounded text-xs text-purple-900">
+                    <span class="text-purple-500 mt-0.5">📊</span>
+                    <span class="font-medium break-words">\${escapeHtml(item)}</span>
+                  </div>
+                `).join('')
+        : `<p class="text-xs text-slate-400 italic">No specific assessments listed.</p>`
+      }
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
 function openModalForNewPlan(startIso, endIso, isAllDay = false) {
   currentEditingLessonId = null;
   updateModalNavigationControls();
@@ -1115,6 +1205,49 @@ function setupEventListeners() {
         console.error(err);
         updateStatus('Error duplicating plan', true);
       }
+    };
+  }
+
+  // Daily Assessments Modal Handlers
+  const openAssessModalBtn = document.getElementById('open-assessments-grid-btn');
+  const assessModal = document.getElementById('assessments-grid-modal');
+
+  if (openAssessModalBtn && assessModal) {
+    openAssessModalBtn.onclick = () => {
+      currentAssessmentViewDate = new Date(); // Default to "Today"
+      renderDailyAssessmentsGrid();
+      assessModal.classList.remove('hidden');
+    };
+  }
+
+  const closeAssessBtn = document.getElementById('close-assessments-modal');
+  if (closeAssessBtn) closeAssessBtn.onclick = () => assessModal.classList.add('hidden');
+
+  const doneAssessBtn = document.getElementById('done-assessments-modal');
+  if (doneAssessBtn) doneAssessBtn.onclick = () => assessModal.classList.add('hidden');
+
+  // Assessment Date Navigation
+  const prevAssessDayBtn = document.getElementById('assess-prev-day-btn');
+  if (prevAssessDayBtn) {
+    prevAssessDayBtn.onclick = () => {
+      currentAssessmentViewDate.setDate(currentAssessmentViewDate.getDate() - 1);
+      renderDailyAssessmentsGrid();
+    };
+  }
+
+  const nextAssessDayBtn = document.getElementById('assess-next-day-btn');
+  if (nextAssessDayBtn) {
+    nextAssessDayBtn.onclick = () => {
+      currentAssessmentViewDate.setDate(currentAssessmentViewDate.getDate() + 1);
+      renderDailyAssessmentsGrid();
+    };
+  }
+
+  const todayAssessBtn = document.getElementById('assess-today-btn');
+  if (todayAssessBtn) {
+    todayAssessBtn.onclick = () => {
+      currentAssessmentViewDate = new Date();
+      renderDailyAssessmentsGrid();
     };
   }
 
