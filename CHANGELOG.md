@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.7.0] - 2026-09-19
+
+### Added
+- **Daily Assessments & Checks Grid**:
+  - Added a **📊 Daily Assessments** button in the left sidebar column below the flag widget.
+  - Modal view displaying all scheduled assessments for a given date grouped cleanly by **Subject**.
+  - Integrated date navigation with on-screen buttons (`Prev`, `Today`, `Next`) and keyboard `ArrowLeft` / `ArrowRight` shortcuts.
+  - Automatically filters out subjects or lessons without active assessments for a streamlined view formatted for paper planners.
+  - Included a 🖨️ Print View option.
+- **Lesson Editor Modal Navigation**:
+  - Added `← Prev` / `Next →` buttons and position counter (`Lesson X of Y`) to switch between lessons directly within the editor.
+  - Full keyboard `ArrowLeft` / `ArrowRight` shortcut integration.
+- **Remembered Autocomplete Datalists**:
+  - Native `<datalist>` auto-suggestions for **Subject** and **Grade/Student** fields.
+  - Automatically remembers past entries across sessions via `localStorage`, supporting `Down Arrow` selection and `Tab` / `Enter` auto-completion.
+- **Interactive Custom Color Palette**:
+  - Color tag picker for Grade/Student entries saved locally and synced to Google Sheets.
+- **Procedure Reordering & Inline Editing**:
+  - Drag-and-drop handle (`⠿`) to reorder lesson procedure steps.
+  - Inline editing for objectives, assessments, materials text, web links, and procedure steps.
+
+### Fixed & Improved
+- **Instant Local Memory Update**: Updated `form.onsubmit` to mutate local `lessonsData` immediately upon saving, eliminating Google Apps Script read-after-write latency.
+- **Procedure Array Serialization**: Fixed array destructuring in drag-and-drop drop handler to prevent nested array corruption when saving to Google Sheets.
+- **Type Safety**: Ensured numerical values (such as numeric grade numbers) are safely cast to strings before passing to `escapeHtml()`.
+
 ## [1.6.0] - 2026-09-17
 
 ### Added
