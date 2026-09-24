@@ -21,17 +21,14 @@
 </head>
 
 <body class="bg-slate-100 text-slate-800 p-6">
-
   <!-- Two-Column Main Layout Container -->
   <main class="max-w-7xl mx-auto flex flex-col md:flex-row gap-6 items-start">
-
     <!-- Left Column: Widget Column -->
     <div class="flex-shrink-0 flex flex-col">
       <div class="mb-6 h-[32px] hidden md:block"></div>
       <aside class="w-fit bg-white p-2 rounded-xl shadow-sm border border-slate-200 flex justify-center">
         <script src="https://halfstaff.org/widgets/us-half-staff-flags.js"></script>
       </aside>
-
       <!-- 📊 Daily Assignments Grid Button -->
       <button id="open-assessments-grid-btn" type="button"
         class="mt-3 w-full px-3 py-2 bg-indigo-600 text-white text-xs font-semibold rounded-lg shadow-sm hover:bg-indigo-700 flex items-center justify-center gap-1.5 transition-colors">
@@ -52,7 +49,6 @@
         <div id="calendar"></div>
       </div>
     </div>
-
   </main>
 
   <!-- Expanded Wide Lesson Plan Editor Modal (max-w-5xl) -->
@@ -60,12 +56,14 @@
     <div class="bg-white rounded-xl shadow-xl max-w-5xl w-full p-6 relative max-h-[92vh] overflow-y-auto">
       <button id="close-modal" type="button"
         class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+
       <div class="flex items-center justify-between mb-4 pb-2 border-b border-slate-100">
         <div class="flex items-center gap-3">
           <h2 id="modal-title" class="text-xl font-bold text-slate-900">Lesson Plan</h2>
           <span id="lesson-nav-counter"
             class="text-xs font-semibold px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full hidden"></span>
         </div>
+
         <div id="modal-nav-controls" class="hidden flex items-center gap-1.5 pr-6">
           <button type="button" id="prev-lesson-btn"
             class="px-2.5 py-1 text-xs border rounded-md font-medium text-slate-700 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1">
@@ -105,8 +103,6 @@
               <input type="text" id="lesson-grade" list="grade-list" placeholder="e.g., 9th Grade, Alex S."
                 class="w-full mt-1 p-2 border rounded-md bg-white text-sm">
               <datalist id="grade-list"></datalist>
-
-              <!-- Color Tag Palette Picker -->
               <div class="mt-2">
                 <div class="flex items-center justify-between mb-1">
                   <label class="block text-[11px] font-semibold text-slate-500">Color Tag:</label>
@@ -115,14 +111,17 @@
                 <div id="grade-color-palette" class="flex flex-wrap gap-1.5 items-center"></div>
               </div>
             </div>
+
             <div>
               <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider">Date</label>
               <input type="date" id="lesson-date" required class="w-full mt-1 p-2 border rounded-md bg-white text-sm">
             </div>
+
             <div>
               <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider">Start Time</label>
               <input type="time" id="lesson-start" required class="w-full mt-1 p-2 border rounded-md bg-white text-sm">
             </div>
+
             <div>
               <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider">End Time</label>
               <input type="time" id="lesson-end" required class="w-full mt-1 p-2 border rounded-md bg-white text-sm">
@@ -132,10 +131,8 @@
 
         <!-- Main 2-Column Content Layout -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-
           <!-- Left Column: Objectives, Assessment, Materials -->
           <div class="space-y-5">
-
             <!-- Objectives Section -->
             <div class="bg-white p-3.5 border border-slate-200 rounded-lg shadow-sm">
               <div class="flex justify-between items-center mb-1">
@@ -191,7 +188,6 @@
               <!-- Materials & Links Badges Container -->
               <div id="materials-badges-container" class="flex flex-wrap gap-1.5 mt-2"></div>
             </div>
-
           </div>
 
           <!-- Right Column: Interactive Procedure / Steps Checklist -->
@@ -207,14 +203,11 @@
                 class="text-[11px] font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">0
                 steps</span>
             </div>
-
             <input type="text" id="lesson-procedure-input" placeholder="Type next step and press Enter..."
               class="w-full p-2 text-sm border rounded-md">
-
             <!-- Interactive Step Checklist Container -->
             <div id="procedure-checklist-container" class="space-y-2 flex-1 overflow-y-auto max-h-[340px] pt-1"></div>
           </div>
-
         </div>
 
         <!-- Interactive Multi-Date Calendar Duplication Panel -->
@@ -223,7 +216,6 @@
             <label class="block text-xs font-bold text-amber-900">Select Target Date(s) on Calendar:</label>
             <span id="dup-selected-count" class="text-[11px] font-semibold text-amber-700">0 dates selected</span>
           </div>
-
           <div class="bg-white border border-amber-200 rounded-md p-2 shadow-sm">
             <div class="flex justify-between items-center mb-2 px-1">
               <button type="button" id="prev-dup-month-btn"
@@ -234,7 +226,6 @@
                 class="text-xs font-bold text-slate-600 hover:text-slate-900 px-2 py-0.5 rounded border hover:bg-slate-100">Next
                 &rarr;</button>
             </div>
-
             <div class="grid grid-cols-7 text-center text-[10px] font-semibold text-slate-400 mb-1">
               <div>Su</div>
               <div>Mo</div>
@@ -246,7 +237,6 @@
             </div>
             <div id="dup-mini-calendar-days" class="grid grid-cols-7 gap-1 text-center text-xs"></div>
           </div>
-
           <div class="flex items-center justify-between text-[11px] pt-1 border-t border-amber-200">
             <div class="flex items-center gap-1">
               <input type="date" id="dup-range-start" class="p-1 text-[11px] border rounded bg-white w-28">
@@ -259,9 +249,7 @@
             <button type="button" id="clear-dup-dates-btn"
               class="text-amber-700 hover:text-red-600 font-semibold underline">Clear All</button>
           </div>
-
           <div id="dup-dates-list" class="flex flex-wrap gap-1 max-h-24 overflow-y-auto"></div>
-
           <button type="button" id="confirm-dup-btn"
             class="w-full mt-2 py-2 text-xs font-bold bg-amber-600 text-white rounded hover:bg-amber-700 transition-colors shadow-sm">
             Copy Plan to Selected Target Dates
@@ -279,9 +267,11 @@
           <div class="flex gap-2 ml-auto">
             <button type="button" id="cancel-btn"
               class="px-4 py-2 border text-sm rounded-md hover:bg-slate-50 font-medium">Cancel</button>
-            <button type="submit"
-              class="px-5 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-md hover:bg-indigo-700 shadow-sm">Save
-              Plan</button>
+            <button type="submit" id="save-btn"
+              class="px-4 py-2 bg-indigo-50 text-indigo-700 border border-indigo-200 text-sm font-semibold rounded-md hover:bg-indigo-100 shadow-sm transition-colors">Save</button>
+            <button type="submit" id="save-close-btn"
+              class="px-5 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-md hover:bg-indigo-700 shadow-sm transition-colors">Save
+              & Close</button>
           </div>
         </div>
       </form>
@@ -295,9 +285,7 @@
         class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
       <h3 class="text-lg font-bold text-slate-900">Daily Special Notes</h3>
       <p id="note-modal-subtitle" class="text-xs text-slate-500 mb-4"></p>
-
       <div id="note-list" class="space-y-2 mb-4 max-h-48 overflow-y-auto"></div>
-
       <form id="note-form" class="flex gap-2">
         <input type="text" id="new-note-input" required placeholder="Add note (e.g., Substitute, Field Trip)..."
           class="flex-1 p-2 text-sm border rounded-md">
@@ -329,7 +317,6 @@
   <div id="assessments-grid-modal"
     class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center p-4 z-50">
     <div class="bg-white rounded-xl shadow-xl max-w-4xl w-full p-6 relative max-h-[90vh] flex flex-col">
-      <!-- Modal Header -->
       <div class="flex items-center justify-between pb-3 border-b border-slate-200">
         <div class="flex items-center gap-2">
           <h2 class="text-lg font-bold text-slate-900">📊 Daily Assignments Grid</h2>
@@ -347,18 +334,11 @@
             class="ml-3 text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
         </div>
       </div>
-
-      <!-- Date Subheader -->
       <div class="py-2.5 px-4 my-3 text-center bg-slate-50 border border-slate-200 rounded-lg">
         <span id="assessments-date-display" class="text-sm font-bold text-slate-800"></span>
       </div>
-
-      <!-- Dynamic Grid View Container -->
       <div id="assessments-grid-container" class="py-2 flex-1 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-3.5">
-        <!-- Cards rendered dynamically by app.js -->
       </div>
-
-      <!-- Modal Footer -->
       <div class="pt-3 mt-2 border-t border-slate-200 flex justify-between items-center">
         <span class="text-[11px] text-slate-400 italic">Formatted for quick transfer to paper planner</span>
         <div class="flex gap-2">
@@ -371,8 +351,8 @@
       </div>
     </div>
   </div>
-</body>
 
-<script src="app.js"></script>
+  <script src="app.js"></script>
+</body>
 
 </html>

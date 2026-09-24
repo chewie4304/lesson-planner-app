@@ -10,6 +10,7 @@ let activeNoteDate = null;
 let confirmCallback = null;
 let selectedDupDates = [];
 let miniCalCurrentDate = new Date();
+let currentEditingLessonId = null;
 
 // Reactive Form Items State
 let currentObjectives = [];
@@ -257,6 +258,102 @@ function commitPendingInputs() {
   }
 }
 
+// Modal Lesson Navigation Helpers
+function getSortedLessons() {
+  return [...lessonsData].sort((a, b) => {
+    const dateA = a.date ? String(a.date).split('T').at(0) : '';
+    const dateB = b.date ? String(b.date).split('T').at(0) : '';
+    if (dateA !== dateB) return dateA.localeCompare(dateB);
+    const timeA = formatTimeForInput(a.startTime) || '00:00';
+    const timeB = formatTimeForInput(b.startTime) || '00:00';
+    return timeA.localeCompare(timeB);
+  });
+}
+
+function updateModalNavControls() {
+  const counterEl = document.getElementById('lesson-nav-counter');
+  const navBox = document.getElementById('modal-nav-controls');
+  const prevBtn = document.getElementById('prev-lesson-btn');
+  const nextBtn = document.getElementById('next-lesson-btn');
+
+  if (!currentEditingLessonId) {
+    if (counterEl) counterEl.classList.add('hidden');
+    if (navBox) navBox.classList.add('hidden');
+    return;
+  }
+
+  const sorted = getSortedLessons();
+  const index = sorted.findIndex(l => String(l.id) === String(currentEditingLessonId));
+
+  if (index === -1) {
+    if (counterEl) counterEl.classList.add('hidden');
+    if (navBox) navBox.classList.add('hidden');
+    return;
+  }
+
+  if (counterEl) {
+    counterEl.innerText = `Lesson ${index + 1} of ${sorted.length}`;
+    counterEl.classList.remove('hidden');
+  }
+  if (navBox) {
+    navBox.classList.remove('hidden');
+  }
+
+  if (prevBtn) prevBtn.disabled = index <= 0;
+  if (nextBtn) nextBtn.disabled = index >= sorted.length - 1;
+}
+
+async function navigateLesson(offset) {
+  if (!currentEditingLessonId) return;
+
+  const sorted = getSortedLessons();
+  const currentIndex = sorted.findIndex(l => String(l.id) === String(currentEditingLessonId));
+  if (currentIndex === -1) return;
+
+  const targetIndex = currentIndex + offset;
+  if (targetIndex < 0 || targetIndex >= sorted.length) return;
+
+  // 1. Save current lesson before switching
+  commitPendingInputs();
+  const payload = {
+    id: document.getElementById('lesson-id').value,
+    title: document.getElementById('lesson-title').value,
+    subject: document.getElementById('lesson-subject').value,
+    grade: document.getElementById('lesson-grade').value,
+    date: document.getElementById('lesson-date').value,
+    startTime: document.getElementById('lesson-start').value,
+    endTime: document.getElementById('lesson-end').value,
+    objectives: currentObjectives,
+    procedure: currentProcedure,
+    assessment: currentAssessment,
+    materials: { textList: currentMaterialsText, links: attachedLinks },
+    status: 'Scheduled'
+  };
+
+  updateStatus('Saving & switching lesson...');
+  try {
+    const { error } = await supabaseClient.from('lessons').upsert(payload);
+    if (error) throw error;
+
+    // Mutate local array so calendar updates immediately
+    const localIdx = lessonsData.findIndex(l => String(l.id) === String(payload.id));
+    if (localIdx !== -1) {
+      lessonsData[localIdx] = payload;
+    } else {
+      lessonsData.push(payload);
+    }
+    renderEventsOnCalendar();
+  } catch (err) {
+    console.error('Auto-save failed during navigation:', err);
+  }
+
+  // 2. Load the target lesson
+  const targetLesson = sorted[targetIndex];
+  if (targetLesson) {
+    openModalForEdit(targetLesson);
+  }
+}
+
 // Render Functions for Reactive Badges
 function renderObjectivesBadges() {
   const container = document.getElementById('objectives-badges-container');
@@ -467,6 +564,9 @@ function openModalForNewPlan(startIso, endIso, isAllDay = false) {
   renderMiniCalendar();
   renderDupDatesList();
 
+  currentEditingLessonId = null;
+  updateModalNavControls();
+
   document.getElementById('duplicate-panel').classList.add('hidden');
   document.getElementById('duplicate-btn').classList.add('hidden');
   document.getElementById('delete-btn').classList.add('hidden');
@@ -507,6 +607,9 @@ function openModalForEdit(lesson) {
   renderMiniCalendar();
   renderDupDatesList();
 
+  currentEditingLessonId = lesson.id;
+  updateModalNavControls();
+
   document.getElementById('duplicate-panel').classList.add('hidden');
   document.getElementById('duplicate-btn').classList.remove('hidden');
   document.getElementById('delete-btn').classList.remove('hidden');
@@ -539,6 +642,30 @@ function setupEventListeners() {
 
   document.getElementById('close-modal').onclick = () => modal.classList.add('hidden');
   document.getElementById('cancel-btn').onclick = () => modal.classList.add('hidden');
+
+  // Navigation Button Handlers
+  const prevBtn = document.getElementById('prev-lesson-btn');
+  if (prevBtn) prevBtn.onclick = () => navigateLesson(-1);
+
+  const nextBtn = document.getElementById('next-lesson-btn');
+  if (nextBtn) nextBtn.onclick = () => navigateLesson(1);
+
+  // Keyboard Arrow Hotkeys
+  document.addEventListener('keydown', async (e) => {
+    const modalEl = document.getElementById('lesson-modal');
+    if (!modalEl || modalEl.classList.contains('hidden')) return;
+
+    const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+    if (activeTag === 'input' || activeTag === 'textarea' || activeTag === 'select') return;
+
+    if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      await navigateLesson(-1);
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      await navigateLesson(1);
+    }
+  });
 
   document.getElementById('lesson-objectives-input').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
@@ -676,7 +803,7 @@ function setupEventListeners() {
     panel.classList.toggle('hidden');
   };
 
-  // Duplication Logic via Supabase Upsert
+  // Duplication Logic
   document.getElementById('confirm-dup-btn').onclick = async () => {
     commitPendingInputs();
 
@@ -719,10 +846,12 @@ function setupEventListeners() {
     }
   };
 
-  // Save / Update Logic via Supabase Upsert
+  // Save / Save & Close Logic
   form.onsubmit = async (e) => {
     e.preventDefault();
     commitPendingInputs();
+
+    const isSaveAndClose = e.submitter ? e.submitter.id === 'save-close-btn' : true;
 
     const payload = {
       id: document.getElementById('lesson-id').value,
@@ -739,7 +868,9 @@ function setupEventListeners() {
       status: 'Scheduled'
     };
 
-    modal.classList.add('hidden');
+    if (isSaveAndClose) {
+      modal.classList.add('hidden');
+    }
     updateStatus('Saving to Supabase...');
 
     try {
@@ -747,13 +878,16 @@ function setupEventListeners() {
       if (error) throw error;
 
       await loadLessons();
+      if (!isSaveAndClose) {
+        updateStatus('Lesson saved successfully');
+      }
     } catch (err) {
       console.error(err);
       updateStatus('Error saving plan', true);
     }
   };
 
-  // Delete Logic via Supabase Delete
+  // Delete Logic
   document.getElementById('delete-btn').onclick = () => {
     const id = document.getElementById('lesson-id').value;
     showConfirmModal(
