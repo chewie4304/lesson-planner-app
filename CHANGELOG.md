@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.2] - 2026-09-24
+
+### Added
+- **Same-Time Lesson Reordering**: Combined the modal counter badge (`[ Lesson 1 of 4 ▾ ]`) with an interactive dropdown to reorder lessons scheduled in the same time slot via drag-and-drop.
+- **Schema-Safe Sequence Persistence**: Custom lesson sort orders are safely stored within `materials.sortOrder`, ensuring seamless data sync with Supabase without requiring database table changes.
+
+### Fixed
+- **Global Calendar Navigation**: Modal `← Prev` and `Next →` buttons now cycle through all scheduled calendar lessons while the counter badge reflects same-time slot counts.
+- Fixed array state update sequence during drag-and-drop reordering to prevent unexpected list shuffling.
+
 ## [2.1.1] - 2026-09-24
 
 ### Added
