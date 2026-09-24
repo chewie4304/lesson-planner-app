@@ -724,6 +724,9 @@ function setupEventListeners() {
     e.preventDefault();
     commitPendingInputs();
 
+    // Determine if user clicked 'Save & Close' vs 'Save'
+    const isSaveAndClose = e.submitter ? e.submitter.id === 'save-close-btn' : true;
+
     const payload = {
       id: document.getElementById('lesson-id').value,
       title: document.getElementById('lesson-title').value,
@@ -739,7 +742,9 @@ function setupEventListeners() {
       status: 'Scheduled'
     };
 
-    modal.classList.add('hidden');
+    if (isSaveAndClose) {
+      modal.classList.add('hidden');
+    }
     updateStatus('Saving to Supabase...');
 
     try {
@@ -747,6 +752,9 @@ function setupEventListeners() {
       if (error) throw error;
 
       await loadLessons();
+      if (!isSaveAndClose) {
+        updateStatus('Lesson saved successfully');
+      }
     } catch (err) {
       console.error(err);
       updateStatus('Error saving plan', true);
