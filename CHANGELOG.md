@@ -10,7 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.1.0] - 2026-09-23
 
 ### Added
-- **Dual Save Controls**: Introduced distinct **Save** (saves changes while keeping the lesson modal open) and **Save & Close** (saves changes and closes the modal) buttons in the lesson editor modal footer.
+- **Lesson Modal Navigation**: Added `← Prev` and `Next →` header buttons alongside `ArrowLeft` / `ArrowRight` keyboard shortcuts to cycle through lessons sequentially while editing.
+- **Auto-Save on Navigation**: Automatically commits and saves any pending edits to Supabase before transitioning to the previous or next lesson.
+- **Dual Save Controls**: Added distinct **Save** (saves changes while keeping the modal open) and **Save & Close** (saves changes and closes the modal) buttons.
 
 ## [2.0.0] - 2026-09-23
 
