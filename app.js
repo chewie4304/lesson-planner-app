@@ -19,6 +19,10 @@ let currentMaterialsText = [];
 let attachedLinks = [];
 let currentProcedure = [];
 
+// Inline Edit & Drag State Tracker
+let editingState = { type: null, idx: null };
+let draggedStepIndex = null;
+
 // Dedicated Color Palette for Custom Grade Levels
 const GRADE_COLORS = {
   '6': { bg: '#059669', border: '#047857' }, // 6th Grade - Emerald Green
@@ -313,7 +317,6 @@ async function navigateLesson(offset) {
   const targetIndex = currentIndex + offset;
   if (targetIndex < 0 || targetIndex >= sorted.length) return;
 
-  // 1. Save current lesson before switching
   commitPendingInputs();
   const payload = {
     id: document.getElementById('lesson-id').value,
@@ -335,7 +338,6 @@ async function navigateLesson(offset) {
     const { error } = await supabaseClient.from('lessons').upsert(payload);
     if (error) throw error;
 
-    // Mutate local array so calendar updates immediately
     const localIdx = lessonsData.findIndex(l => String(l.id) === String(payload.id));
     if (localIdx !== -1) {
       lessonsData[localIdx] = payload;
@@ -347,31 +349,87 @@ async function navigateLesson(offset) {
     console.error('Auto-save failed during navigation:', err);
   }
 
-  // 2. Load the target lesson
   const targetLesson = sorted[targetIndex];
   if (targetLesson) {
     openModalForEdit(targetLesson);
   }
 }
 
-// Render Functions for Reactive Badges
+// --- Objectives Editing & Rendering ---
+
+function editObjectiveItem(e, idx) {
+  if (e) e.stopPropagation();
+  editingState = { type: 'objective', idx };
+  renderObjectivesBadges();
+}
+
+function saveObjectiveEdit(idx, val) {
+  if (editingState.type !== 'objective' || editingState.idx !== idx) return;
+  editingState = { type: null, idx: null };
+  const trimmed = val.trim();
+  if (trimmed) {
+    currentObjectives[idx] = trimmed;
+  } else {
+    currentObjectives.splice(idx, 1);
+  }
+  renderObjectivesBadges();
+}
+
 function renderObjectivesBadges() {
   const container = document.getElementById('objectives-badges-container');
   if (currentObjectives.length === 0) {
     container.innerHTML = `<span class="text-xs text-slate-400 italic">No objectives added yet.</span>`;
     return;
   }
-  container.innerHTML = currentObjectives.map((obj, idx) => `
-    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-sky-50 text-sky-800 border border-sky-200 rounded-md text-xs font-medium shadow-sm">
-      <span>🎯 ${escapeHtml(obj)}</span>
-      <button type="button" onclick="removeObjectiveItem(${idx})" class="text-sky-400 hover:text-red-600 font-bold text-sm leading-none">&times;</button>
-    </span>
-  `).join('');
+  container.innerHTML = currentObjectives.map((obj, idx) => {
+    if (editingState.type === 'objective' && editingState.idx === idx) {
+      return `
+        <span class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-sky-50 border border-sky-300 rounded-md">
+          <input type="text" id="active-edit-input" value="${escapeHtml(obj)}"
+                 class="px-1.5 py-0.5 text-xs border border-sky-300 rounded bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                 onkeydown="if(event.key==='Enter'){ event.preventDefault(); saveObjectiveEdit(${idx}, this.value); }"
+                 onblur="saveObjectiveEdit(${idx}, this.value)">
+        </span>
+      `;
+    }
+    return `
+      <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-sky-50 text-sky-800 border border-sky-200 rounded-md text-xs font-medium shadow-sm">
+        <span class="cursor-pointer hover:underline" onclick="editObjectiveItem(event, ${idx})" title="Click to edit">🎯 ${escapeHtml(obj)}</span>
+        <button type="button" onclick="removeObjectiveItem(${idx})" class="text-sky-400 hover:text-red-600 font-bold text-sm leading-none">&times;</button>
+      </span>
+    `;
+  }).join('');
+
+  if (editingState.type === 'objective') {
+    setTimeout(() => {
+      const input = document.getElementById('active-edit-input');
+      if (input) { input.focus(); input.select(); }
+    }, 20);
+  }
 }
 
 function removeObjectiveItem(idx) {
   currentObjectives.splice(idx, 1);
   renderObjectivesBadges();
+}
+
+// --- Assessment Editing & Rendering ---
+function editAssessmentItem(e, idx) {
+  if (e) e.stopPropagation();
+  editingState = { type: 'assessment', idx };
+  renderAssessmentBadges();
+}
+
+function saveAssessmentEdit(idx, val) {
+  if (editingState.type !== 'assessment' || editingState.idx !== idx) return;
+  editingState = { type: null, idx: null };
+  const trimmed = val.trim();
+  if (trimmed) {
+    currentAssessment[idx] = trimmed;
+  } else {
+    currentAssessment.splice(idx, 1);
+  }
+  renderAssessmentBadges();
 }
 
 function renderAssessmentBadges() {
@@ -380,17 +438,55 @@ function renderAssessmentBadges() {
     container.innerHTML = `<span class="text-xs text-slate-400 italic">No assessment methods added yet.</span>`;
     return;
   }
-  container.innerHTML = currentAssessment.map((item, idx) => `
-    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-purple-50 text-purple-800 border border-purple-200 rounded-md text-xs font-medium shadow-sm">
-      <span>📊 ${escapeHtml(item)}</span>
-      <button type="button" onclick="removeAssessmentItem(${idx})" class="text-purple-400 hover:text-red-600 font-bold text-sm leading-none">&times;</button>
-    </span>
-  `).join('');
+  container.innerHTML = currentAssessment.map((item, idx) => {
+    if (editingState.type === 'assessment' && editingState.idx === idx) {
+      return `
+        <span class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-purple-50 border border-purple-300 rounded-md">
+          <input type="text" id="active-edit-input" value="${escapeHtml(item)}"
+                 class="px-1.5 py-0.5 text-xs border border-purple-300 rounded bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                 onkeydown="if(event.key==='Enter'){ event.preventDefault(); saveAssessmentEdit(${idx}, this.value); }"
+                 onblur="saveAssessmentEdit(${idx}, this.value)">
+        </span>
+      `;
+    }
+    return `
+      <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-purple-50 text-purple-800 border border-purple-200 rounded-md text-xs font-medium shadow-sm">
+        <span class="cursor-pointer hover:underline" onclick="editAssessmentItem(event, ${idx})" title="Click to edit">📊 ${escapeHtml(item)}</span>
+        <button type="button" onclick="removeAssessmentItem(${idx})" class="text-purple-400 hover:text-red-600 font-bold text-sm leading-none">&times;</button>
+      </span>
+    `;
+  }).join('');
+
+  if (editingState.type === 'assessment') {
+    setTimeout(() => {
+      const input = document.getElementById('active-edit-input');
+      if (input) { input.focus(); input.select(); }
+    }, 20);
+  }
 }
 
 function removeAssessmentItem(idx) {
   currentAssessment.splice(idx, 1);
   renderAssessmentBadges();
+}
+
+// --- Materials Editing & Rendering ---
+function editMaterialTextItem(e, idx) {
+  if (e) e.stopPropagation();
+  editingState = { type: 'material', idx };
+  renderMaterialsBadges();
+}
+
+function saveMaterialTextEdit(idx, val) {
+  if (editingState.type !== 'material' || editingState.idx !== idx) return;
+  editingState = { type: null, idx: null };
+  const trimmed = val.trim();
+  if (trimmed) {
+    currentMaterialsText[idx] = trimmed;
+  } else {
+    currentMaterialsText.splice(idx, 1);
+  }
+  renderMaterialsBadges();
 }
 
 function renderMaterialsBadges() {
@@ -402,12 +498,24 @@ function renderMaterialsBadges() {
 
   let html = '';
 
-  html += currentMaterialsText.map((item, idx) => `
-    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-md text-xs font-medium shadow-sm">
-      <span>📦 ${escapeHtml(item)}</span>
-      <button type="button" onclick="removeMaterialTextItem(${idx})" class="text-emerald-400 hover:text-red-600 font-bold text-sm leading-none">&times;</button>
-    </span>
-  `).join('');
+  html += currentMaterialsText.map((item, idx) => {
+    if (editingState.type === 'material' && editingState.idx === idx) {
+      return `
+        <span class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-emerald-50 border border-emerald-300 rounded-md">
+          <input type="text" id="active-edit-input" value="${escapeHtml(item)}"
+                 class="px-1.5 py-0.5 text-xs border border-emerald-300 rounded bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                 onkeydown="if(event.key==='Enter'){ event.preventDefault(); saveMaterialTextEdit(${idx}, this.value); }"
+                 onblur="saveMaterialTextEdit(${idx}, this.value)">
+        </span>
+      `;
+    }
+    return `
+      <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-md text-xs font-medium shadow-sm">
+        <span class="cursor-pointer hover:underline" onclick="editMaterialTextItem(event, ${idx})" title="Click to edit">📦 ${escapeHtml(item)}</span>
+        <button type="button" onclick="removeMaterialTextItem(${idx})" class="text-emerald-400 hover:text-red-600 font-bold text-sm leading-none">&times;</button>
+      </span>
+    `;
+  }).join('');
 
   html += attachedLinks.map((item, idx) => `
     <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-md text-xs font-semibold shadow-sm">
@@ -419,6 +527,13 @@ function renderMaterialsBadges() {
   `).join('');
 
   container.innerHTML = html;
+
+  if (editingState.type === 'material') {
+    setTimeout(() => {
+      const input = document.getElementById('active-edit-input');
+      if (input) { input.focus(); input.select(); }
+    }, 20);
+  }
 }
 
 function removeMaterialTextItem(idx) {
@@ -431,11 +546,61 @@ function removeAttachedLink(idx) {
   renderMaterialsBadges();
 }
 
+// --- Procedure Drag-and-Drop & Inline Editing ---
+function handleDragStart(e, idx) {
+  if (editingState.type === 'procedure') return;
+  draggedStepIndex = idx;
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', String(idx));
+  e.currentTarget.classList.add('opacity-40');
+}
+
+function handleDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+}
+
+function handleDrop(e, targetIdx) {
+  e.preventDefault();
+  e.stopPropagation();
+  if (draggedStepIndex === null || draggedStepIndex === targetIdx) return;
+
+  const [movedItem] = currentProcedure.splice(draggedStepIndex, 1);
+  if (movedItem) {
+    currentProcedure.splice(targetIdx, 0, movedItem);
+  }
+  draggedStepIndex = null;
+  renderProcedureChecklist();
+}
+
+function handleDragEnd(e) {
+  e.currentTarget.classList.remove('opacity-40');
+  draggedStepIndex = null;
+}
+
+function editProcedureStep(e, idx) {
+  if (e) e.stopPropagation();
+  editingState = { type: 'procedure', idx };
+  renderProcedureChecklist();
+}
+
+function saveProcedureEdit(idx, val) {
+  if (editingState.type !== 'procedure' || editingState.idx !== idx) return;
+  editingState = { type: null, idx: null };
+  const trimmed = val.trim();
+  if (trimmed) {
+    currentProcedure[idx].text = trimmed;
+  } else {
+    currentProcedure.splice(idx, 1);
+  }
+  renderProcedureChecklist();
+}
+
 function renderProcedureChecklist() {
   const container = document.getElementById('procedure-checklist-container');
   const countBadge = document.getElementById('procedure-count-badge');
 
-  const completedCount = currentProcedure.filter(p => p.completed).length;
+  const completedCount = currentProcedure.filter(p => p && p.completed).length;
   countBadge.innerText = `${completedCount}/${currentProcedure.length} completed`;
 
   if (currentProcedure.length === 0) {
@@ -443,29 +608,83 @@ function renderProcedureChecklist() {
     return;
   }
 
-  container.innerHTML = currentProcedure.map((step, idx) => `
-    <div class="flex items-center justify-between p-2.5 ${step.completed ? 'bg-slate-100/70 border-slate-200' : 'bg-white border-slate-200'} border rounded-md shadow-sm transition-all group">
-      <label class="flex items-start gap-2.5 cursor-pointer min-w-0 flex-1 pr-2">
-        <input type="checkbox" ${step.completed ? 'checked' : ''} onchange="toggleProcedureStep(${idx})"
-               class="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer">
-        <span class="text-xs font-medium ${step.completed ? 'line-through text-slate-400' : 'text-slate-800'} break-words">
-          <span class="font-bold text-slate-400 mr-1">${idx + 1}.</span>${escapeHtml(step.text)}
-        </span>
-      </label>
-      <button type="button" onclick="removeProcedureStep(${idx})" class="text-slate-300 hover:text-red-500 font-bold text-sm px-1 transition-colors" title="Delete step">&times;</button>
-    </div>
-  `).join('');
+  container.innerHTML = currentProcedure.map((step, idx) => {
+    if (!step) return '';
+    if (editingState.type === 'procedure' && editingState.idx === idx) {
+      return `
+        <div class="flex items-center justify-between p-2.5 bg-indigo-50/50 border border-indigo-300 rounded-md shadow-sm">
+          <div class="flex items-center gap-2 flex-1 pr-2">
+            <span class="font-bold text-slate-400 text-xs">${idx + 1}.</span>
+            <input type="text" id="active-edit-input" value="${escapeHtml(step.text)}"
+                   class="w-full p-1 text-xs border border-indigo-300 rounded bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                   onkeydown="if(event.key==='Enter'){ event.preventDefault(); saveProcedureEdit(${idx}, this.value); }"
+                   onblur="saveProcedureEdit(${idx}, this.value)">
+          </div>
+        </div>
+      `;
+    }
+    return `
+      <div draggable="true"
+           ondragstart="handleDragStart(event, ${idx})"
+           ondragover="handleDragOver(event)"
+           ondrop="handleDrop(event, ${idx})"
+           ondragend="handleDragEnd(event)"
+           class="flex items-center justify-between p-2.5 ${step.completed ? 'bg-slate-100/70 border-slate-200' : 'bg-white border-slate-200'} border rounded-md shadow-sm transition-all group hover:border-indigo-200">
+        <div class="flex items-center gap-2 min-w-0 flex-1 pr-2">
+          <span class="cursor-grab active:cursor-grabbing text-slate-300 hover:text-slate-600 font-bold select-none text-xs px-0.5" title="Drag to reorder step">⠿</span>
+          <input type="checkbox" ${step.completed ? 'checked' : ''} onchange="toggleProcedureStep(${idx})"
+                 class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer flex-shrink-0">
+          <span class="text-xs font-medium ${step.completed ? 'line-through text-slate-400' : 'text-slate-800'} break-words cursor-pointer hover:underline flex-1"
+                onclick="editProcedureStep(event, ${idx})" title="Click to edit step">
+            <span class="font-bold text-slate-400 mr-1">${idx + 1}.</span>${escapeHtml(step.text)}
+          </span>
+        </div>
+        <button type="button" onclick="removeProcedureStep(${idx})" class="text-slate-300 hover:text-red-500 font-bold text-sm px-1 transition-colors" title="Delete step">&times;</button>
+      </div>
+    `;
+  }).join('');
+
+  if (editingState.type === 'procedure') {
+    setTimeout(() => {
+      const input = document.getElementById('active-edit-input');
+      if (input) { input.focus(); input.select(); }
+    }, 20);
+  }
 }
 
 function toggleProcedureStep(idx) {
-  currentProcedure[idx].completed = !currentProcedure[idx].completed;
-  renderProcedureChecklist();
+  if (currentProcedure[idx]) {
+    currentProcedure[idx].completed = !currentProcedure[idx].completed;
+    renderProcedureChecklist();
+  }
 }
 
 function removeProcedureStep(idx) {
   currentProcedure.splice(idx, 1);
   renderProcedureChecklist();
 }
+
+// Bind functions to window so inline HTML attributes can invoke them globally
+window.editObjectiveItem = editObjectiveItem;
+window.saveObjectiveEdit = saveObjectiveEdit;
+window.removeObjectiveItem = removeObjectiveItem;
+
+window.editAssessmentItem = editAssessmentItem;
+window.saveAssessmentEdit = saveAssessmentEdit;
+window.removeAssessmentItem = removeAssessmentItem;
+
+window.editMaterialTextItem = editMaterialTextItem;
+window.saveMaterialTextEdit = saveMaterialTextEdit;
+window.removeMaterialTextItem = removeMaterialTextItem;
+
+window.editProcedureStep = editProcedureStep;
+window.saveProcedureEdit = saveProcedureEdit;
+window.removeProcedureStep = removeProcedureStep;
+
+window.handleDragStart = handleDragStart;
+window.handleDragOver = handleDragOver;
+window.handleDrop = handleDrop;
+window.handleDragEnd = handleDragEnd;
 
 function renderMiniCalendar() {
   const container = document.getElementById('dup-mini-calendar-days');
@@ -551,6 +770,7 @@ function openModalForNewPlan(startIso, endIso, isAllDay = false) {
   currentMaterialsText = [];
   attachedLinks = [];
   currentProcedure = [];
+  editingState = { type: null, idx: null };
 
   renderObjectivesBadges();
   renderAssessmentBadges();
@@ -594,6 +814,7 @@ function openModalForEdit(lesson) {
   const parsedMat = parseMaterialsField(lesson.materials);
   currentMaterialsText = parsedMat.textList;
   attachedLinks = parsedMat.links;
+  editingState = { type: null, idx: null };
 
   renderObjectivesBadges();
   renderAssessmentBadges();
@@ -642,6 +863,25 @@ function setupEventListeners() {
 
   document.getElementById('close-modal').onclick = () => modal.classList.add('hidden');
   document.getElementById('cancel-btn').onclick = () => modal.classList.add('hidden');
+
+  // Auto-convert '--' to '–' (en-dash) and '---' to '—' (em-dash) in input fields
+  if (modal) {
+    modal.addEventListener('input', (e) => {
+      const target = e.target;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+        const val = target.value;
+        const cursorPos = target.selectionStart;
+
+        if (val.includes('---')) {
+          target.value = val.replace(/---/g, '—');
+          if (cursorPos !== null) target.setSelectionRange(cursorPos - 2, cursorPos - 2);
+        } else if (val.includes('--')) {
+          target.value = val.replace(/--/g, '–');
+          if (cursorPos !== null) target.setSelectionRange(cursorPos - 1, cursorPos - 1);
+        }
+      }
+    });
+  }
 
   // Navigation Button Handlers
   const prevBtn = document.getElementById('prev-lesson-btn');
@@ -1056,5 +1296,6 @@ function renderSpecialNotesRow() {
 }
 
 function escapeHtml(str) {
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  if (str === null || str === undefined) return '';
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
