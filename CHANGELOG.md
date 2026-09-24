@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.0.0] - 2026-09-23
+
+### Changed
+- **Supabase Backend Migration**: Replaced Google Apps Script and Google Sheets integration with direct Supabase PostgreSQL backend integration utilizing `@supabase/supabase-js`.
+- **Native JSON Storage**: Lesson objectives, procedural checklists, assessment strategies, and materials/links are now stored natively as structured `jsonb` fields.
+- **Instant Persistence**: Improved saving, updating, duplicating, and deleting performance, eliminating Google Apps Script cold-start delays.
+
 ## [1.7.0] - 2026-09-19
 
 ### Added

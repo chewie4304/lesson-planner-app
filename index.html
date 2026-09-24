@@ -7,8 +7,17 @@
   <title>Lesson Planner</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Supabase JS Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <!-- FullCalendar CDN -->
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+  <style>
+    /* Ensure overlapping timeGrid events divide the full day column width equally */
+    .fc-timegrid-event-harness-inset>.fc-timegrid-event,
+    .fc-timegrid-event-harness>.fc-timegrid-event {
+      margin-right: 0 !important;
+    }
+  </style>
 </head>
 
 <body class="bg-slate-100 text-slate-800 p-6">
