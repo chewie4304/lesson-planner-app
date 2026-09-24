@@ -11,6 +11,7 @@ let confirmCallback = null;
 let selectedDupDates = [];
 let miniCalCurrentDate = new Date();
 let currentEditingLessonId = null;
+let draggedSameTimeIndex = null;
 
 // Reactive Form Items State
 let currentObjectives = [];
@@ -74,8 +75,8 @@ function formatTimeForInput(timeVal) {
   let str = String(timeVal).trim();
 
   if (str.includes('T')) {
-    const parts = str.split('T').at(0);
-    if (parts) return parts.substring(0, 5);
+    const timePart = str.split('T').at(1);
+    if (timePart) return timePart.substring(0, 5);
   }
 
   if (str.includes(':')) {
@@ -209,27 +210,26 @@ function parseProcedureField(raw) {
 }
 
 function parseMaterialsField(raw) {
-  if (!raw) return { textList: [], links: [] };
+  if (!raw) return { textList: [], links: [], sortOrder: 1 };
   if (typeof raw === 'object' && raw !== null && !Array.isArray(raw)) {
     return {
       textList: Array.isArray(raw.textList) ? raw.textList : (raw.text ? [raw.text] : []),
-      links: Array.isArray(raw.links) ? raw.links : []
+      links: Array.isArray(raw.links) ? raw.links : [],
+      sortOrder: raw.sortOrder || 1
     };
   }
   const parsed = safeJsonParse(raw);
   if (parsed && typeof parsed === 'object') {
     if (Array.isArray(parsed)) {
-      return { textList: parsed.map(String), links: [] };
+      return { textList: parsed.map(String), links: [], sortOrder: 1 };
     }
     return {
       textList: Array.isArray(parsed.textList) ? parsed.textList : (parsed.text ? [parsed.text] : []),
-      links: Array.isArray(parsed.links) ? parsed.links : []
+      links: Array.isArray(parsed.links) ? parsed.links : [],
+      sortOrder: parsed.sortOrder || 1
     };
   }
-  if (typeof parsed === 'string') {
-    return { textList: parsed.split('\n').map(s => s.trim()).filter(Boolean), links: [] };
-  }
-  return { textList: [], links: [] };
+  return { textList: [], links: [], sortOrder: 1 };
 }
 
 function commitPendingInputs() {
@@ -262,15 +262,26 @@ function commitPendingInputs() {
   }
 }
 
+// Helper to safely extract sortOrder from a lesson object or its materials
+function getLessonSortOrder(lesson) {
+  if (!lesson) return 1;
+  if (typeof lesson.sortOrder === 'number') return lesson.sortOrder;
+  const mat = parseMaterialsField(lesson.materials);
+  return typeof mat.sortOrder === 'number' ? mat.sortOrder : 1;
+}
+
 // Modal Lesson Navigation Helpers
 function getSortedLessons() {
   return [...lessonsData].sort((a, b) => {
     const dateA = a.date ? String(a.date).split('T').at(0) : '';
     const dateB = b.date ? String(b.date).split('T').at(0) : '';
     if (dateA !== dateB) return dateA.localeCompare(dateB);
+
     const timeA = formatTimeForInput(a.startTime) || '00:00';
     const timeB = formatTimeForInput(b.startTime) || '00:00';
-    return timeA.localeCompare(timeB);
+    if (timeA !== timeB) return timeA.localeCompare(timeB);
+
+    return getLessonSortOrder(a) - getLessonSortOrder(b);
   });
 }
 
@@ -287,25 +298,152 @@ function updateModalNavControls() {
   }
 
   const sorted = getSortedLessons();
-  const index = sorted.findIndex(l => String(l.id) === String(currentEditingLessonId));
+  const overallIndex = sorted.findIndex(l => String(l.id) === String(currentEditingLessonId));
 
-  if (index === -1) {
+  if (overallIndex === -1) {
     if (counterEl) counterEl.classList.add('hidden');
     if (navBox) navBox.classList.add('hidden');
     return;
   }
 
+  const group = getSameTimeLessons();
+  const slotIndex = group.findIndex(l => String(l.id) === String(currentEditingLessonId));
+  const activeSlotIndex = slotIndex !== -1 ? slotIndex : 0;
+  const activeGroupCount = group.length > 0 ? group.length : 1;
+
   if (counterEl) {
-    counterEl.innerText = `Lesson ${index + 1} of ${sorted.length}`;
+    counterEl.innerText = `Lesson ${activeSlotIndex + 1} of ${activeGroupCount} ▾`;
     counterEl.classList.remove('hidden');
   }
   if (navBox) {
     navBox.classList.remove('hidden');
   }
 
-  if (prevBtn) prevBtn.disabled = index <= 0;
-  if (nextBtn) nextBtn.disabled = index >= sorted.length - 1;
+  if (prevBtn) prevBtn.disabled = overallIndex <= 0;
+  if (nextBtn) nextBtn.disabled = overallIndex >= sorted.length - 1;
 }
+
+function toggleSameTimeReorderPanel() {
+  const panel = document.getElementById('same-time-reorder-panel');
+  if (!panel) return;
+  panel.classList.toggle('hidden');
+  if (!panel.classList.contains('hidden')) {
+    renderSameTimeReorderList();
+  }
+}
+
+function getSameTimeLessons() {
+  if (!currentEditingLessonId) return [];
+  const current = lessonsData.find(l => String(l.id) === String(currentEditingLessonId));
+  if (!current) return [];
+
+  const curDate = current.date ? String(current.date).split('T').at(0) : '';
+  const curTime = formatTimeForInput(current.startTime) || '00:00';
+
+  return getSortedLessons().filter(l => {
+    const d = l.date ? String(l.date).split('T').at(0) : '';
+    const t = formatTimeForInput(l.startTime) || '00:00';
+    return d === curDate && t === curTime;
+  });
+}
+
+function renderSameTimeReorderList() {
+  const container = document.getElementById('same-time-lessons-list');
+  if (!container) return;
+
+  const sameTimeLessons = getSameTimeLessons();
+  if (sameTimeLessons.length <= 1) {
+    container.innerHTML = `<p class="text-xs text-slate-400 italic py-1">No other lessons scheduled at this exact time.</p>`;
+    return;
+  }
+
+  container.innerHTML = sameTimeLessons.map((lesson, idx) => `
+    <div draggable="true"
+         ondragstart="handleSameTimeDragStart(event, ${idx})"
+         ondragover="handleSameTimeDragOver(event)"
+         ondrop="handleSameTimeDrop(event, ${idx})"
+         ondragend="handleSameTimeDragEnd(event)"
+         class="flex items-center gap-2 p-1.5 bg-slate-50 border border-slate-200 rounded text-xs cursor-grab active:cursor-grabbing hover:border-indigo-300 ${String(lesson.id) === String(currentEditingLessonId) ? 'ring-1 ring-indigo-500 bg-indigo-50/50' : ''}">
+      <span class="text-slate-400 font-bold select-none">⠿</span>
+      <span class="font-medium text-slate-700 truncate flex-1">${escapeHtml(lesson.title || 'Untitled')}</span>
+      <span class="text-[10px] text-slate-500 bg-white px-1.5 py-0.5 rounded border border-slate-200">${escapeHtml(lesson.grade || 'Gen')}</span>
+    </div>
+  `).join('');
+}
+
+function handleSameTimeDragStart(e, idx) {
+  draggedSameTimeIndex = idx;
+  e.dataTransfer.effectAllowed = 'move';
+}
+
+function handleSameTimeDragOver(e) {
+  e.preventDefault();
+}
+
+async function handleSameTimeDrop(e, targetIdx) {
+  e.preventDefault();
+  e.stopPropagation();
+  if (draggedSameTimeIndex === null || draggedSameTimeIndex === targetIdx) return;
+
+  const group = getSameTimeLessons();
+  const [moved] = group.splice(draggedSameTimeIndex, 1);
+  group.splice(targetIdx, 0, moved);
+
+  // Prepare database payloads storing sortOrder safely inside materials
+  const payloads = group.map((lesson, index) => {
+    const mat = parseMaterialsField(lesson.materials);
+    mat.sortOrder = index + 1;
+
+    return {
+      id: String(lesson.id),
+      title: lesson.title || '',
+      subject: lesson.subject || '',
+      grade: lesson.grade || '',
+      date: lesson.date ? String(lesson.date).split('T').at(0) : '',
+      startTime: formatTimeForInput(lesson.startTime),
+      endTime: formatTimeForInput(lesson.endTime),
+      objectives: parseListField(lesson.objectives),
+      procedure: parseProcedureField(lesson.procedure),
+      assessment: parseListField(lesson.assessment),
+      materials: mat,
+      status: lesson.status || 'Scheduled'
+    };
+  });
+
+  draggedSameTimeIndex = null;
+  renderSameTimeReorderList();
+
+  // Update local app state immediately
+  payloads.forEach(updated => {
+    const idx = lessonsData.findIndex(l => String(l.id) === String(updated.id));
+    if (idx !== -1) lessonsData[idx] = updated;
+  });
+
+  updateModalNavControls();
+  renderEventsOnCalendar();
+
+  // Persist to Supabase cleanly
+  updateStatus('Saving lesson order...');
+  try {
+    const { error } = await supabaseClient.from('lessons').upsert(payloads);
+    if (error) throw error;
+    updateStatus('Lesson order saved');
+  } catch (err) {
+    console.error('Reorder error:', err);
+    updateStatus('Error saving lesson order', true);
+  }
+}
+
+function handleSameTimeDragEnd(e) {
+  draggedSameTimeIndex = null;
+}
+
+window.toggleSameTimeReorderPanel = toggleSameTimeReorderPanel;
+window.handleSameTimeDragStart = handleSameTimeDragStart;
+window.handleSameTimeDragOver = handleSameTimeDragOver;
+window.handleSameTimeDrop = handleSameTimeDrop;
+window.handleSameTimeDragEnd = handleSameTimeDragEnd;
+window.renderSameTimeReorderList = renderSameTimeReorderList;
 
 async function navigateLesson(offset) {
   if (!currentEditingLessonId) return;
@@ -318,6 +456,8 @@ async function navigateLesson(offset) {
   if (targetIndex < 0 || targetIndex >= sorted.length) return;
 
   commitPendingInputs();
+  const currentSortOrder = getLessonSortOrder(lessonsData.find(l => String(l.id) === String(document.getElementById('lesson-id').value)) || {});
+
   const payload = {
     id: document.getElementById('lesson-id').value,
     title: document.getElementById('lesson-title').value,
@@ -329,7 +469,7 @@ async function navigateLesson(offset) {
     objectives: currentObjectives,
     procedure: currentProcedure,
     assessment: currentAssessment,
-    materials: { textList: currentMaterialsText, links: attachedLinks },
+    materials: { textList: currentMaterialsText, links: attachedLinks, sortOrder: currentSortOrder },
     status: 'Scheduled'
   };
 
@@ -1093,6 +1233,8 @@ function setupEventListeners() {
 
     const isSaveAndClose = e.submitter ? e.submitter.id === 'save-close-btn' : true;
 
+    const currentSortOrder = getLessonSortOrder(lessonsData.find(l => String(l.id) === String(document.getElementById('lesson-id').value)) || {});
+
     const payload = {
       id: document.getElementById('lesson-id').value,
       title: document.getElementById('lesson-title').value,
@@ -1104,7 +1246,7 @@ function setupEventListeners() {
       objectives: currentObjectives,
       procedure: currentProcedure,
       assessment: currentAssessment,
-      materials: { textList: currentMaterialsText, links: attachedLinks },
+      materials: { textList: currentMaterialsText, links: attachedLinks, sortOrder: currentSortOrder },
       status: 'Scheduled'
     };
 

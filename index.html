@@ -57,22 +57,37 @@
       <button id="close-modal" type="button"
         class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
 
-      <div class="flex items-center justify-between mb-4 pb-2 border-b border-slate-100">
-        <div class="flex items-center gap-3">
-          <h2 id="modal-title" class="text-xl font-bold text-slate-900">Lesson Plan</h2>
-          <span id="lesson-nav-counter"
-            class="text-xs font-semibold px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full hidden"></span>
-        </div>
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between pb-3 border-b border-slate-200 mb-4">
+        <h3 id="modal-title" class="text-lg font-bold text-slate-800">Edit Lesson Plan</h3>
 
-        <div id="modal-nav-controls" class="hidden flex items-center gap-1.5 pr-6">
+        <!-- Navigation Controls (Right Side) -->
+        <div id="modal-nav-controls" class="hidden flex items-center gap-1.5 pr-10 relative">
           <button type="button" id="prev-lesson-btn"
-            class="px-2.5 py-1 text-xs border rounded-md font-medium text-slate-700 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1">
-            &larr; Prev
+            class="px-2 py-1 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded border border-slate-300 disabled:opacity-40 transition-colors">←
+            Prev</button>
+
+          <!-- Interactive Counter Badge & Reorder Toggle -->
+          <button type="button" id="lesson-nav-counter" onclick="toggleSameTimeReorderPanel()"
+            class="text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-full border border-indigo-200 transition-colors flex items-center gap-1 shadow-sm"
+            title="Click to reorder lessons at this time">
+            Lesson 1 of 1 ▾
           </button>
+
           <button type="button" id="next-lesson-btn"
-            class="px-2.5 py-1 text-xs border rounded-md font-medium text-slate-700 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1">
-            Next &rarr;
-          </button>
+            class="px-2 py-1 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded border border-slate-300 disabled:opacity-40 transition-colors">Next
+            →</button>
+
+          <!-- Floating Reorder Dropdown Panel -->
+          <div id="same-time-reorder-panel"
+            class="hidden absolute top-9 right-0 z-50 w-64 bg-white border border-slate-200 rounded-lg shadow-xl p-3 text-left">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-2 mb-2">
+              <span class="text-xs font-bold text-slate-700">Reorder Same-Time Lessons</span>
+              <button type="button" onclick="toggleSameTimeReorderPanel()"
+                class="text-slate-400 hover:text-slate-600 text-xs font-bold">&times;</button>
+            </div>
+            <div id="same-time-lessons-list" class="space-y-1.5 max-h-48 overflow-y-auto"></div>
+          </div>
         </div>
       </div>
 
