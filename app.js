@@ -215,7 +215,7 @@ function parseMaterialsField(raw) {
     return {
       textList: Array.isArray(raw.textList) ? raw.textList : (raw.text ? [raw.text] : []),
       links: Array.isArray(raw.links) ? raw.links : [],
-      sortOrder: raw.sortOrder || 1
+      sortOrder: typeof raw.sortOrder === 'number' ? raw.sortOrder : 1
     };
   }
   const parsed = safeJsonParse(raw);
@@ -226,7 +226,7 @@ function parseMaterialsField(raw) {
     return {
       textList: Array.isArray(parsed.textList) ? parsed.textList : (parsed.text ? [parsed.text] : []),
       links: Array.isArray(parsed.links) ? parsed.links : [],
-      sortOrder: parsed.sortOrder || 1
+      sortOrder: typeof parsed.sortOrder === 'number' ? parsed.sortOrder : 1
     };
   }
   return { textList: [], links: [], sortOrder: 1 };
@@ -265,9 +265,10 @@ function commitPendingInputs() {
 // Helper to safely extract sortOrder from a lesson object or its materials
 function getLessonSortOrder(lesson) {
   if (!lesson) return 1;
-  if (typeof lesson.sortOrder === 'number') return lesson.sortOrder;
   const mat = parseMaterialsField(lesson.materials);
-  return typeof mat.sortOrder === 'number' ? mat.sortOrder : 1;
+  if (typeof mat.sortOrder === 'number') return mat.sortOrder;
+  if (typeof lesson.sortOrder === 'number') return lesson.sortOrder;
+  return 1;
 }
 
 // Modal Lesson Navigation Helpers
@@ -411,18 +412,19 @@ async function handleSameTimeDrop(e, targetIdx) {
   });
 
   draggedSameTimeIndex = null;
-  renderSameTimeReorderList();
 
-  // Update local app state immediately
+  // 1. Update local app memory state FIRST
   payloads.forEach(updated => {
     const idx = lessonsData.findIndex(l => String(l.id) === String(updated.id));
     if (idx !== -1) lessonsData[idx] = updated;
   });
 
+  // 2. Re-render UI views with the updated order
+  renderSameTimeReorderList();
   updateModalNavControls();
   renderEventsOnCalendar();
 
-  // Persist to Supabase cleanly
+  // 3. Persist to Supabase
   updateStatus('Saving lesson order...');
   try {
     const { error } = await supabaseClient.from('lessons').upsert(payloads);
