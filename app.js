@@ -1,7 +1,7 @@
 // Supabase Client Configuration
 const SUPABASE_URL = 'https://pnpudjetvfshnmysynmn.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBucHVkamV0dmZzaG5teXN5bm1uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcyNTY5MTksImV4cCI6MjEwMjgzMjkxOX0._XLKuDsEg3OUyJ0fGIQbsvvcLUG3GBvJtUR3tcuwt5M';
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let calendar;
 let lessonsData = [];
@@ -123,7 +123,7 @@ function initCalendar() {
 async function loadLessons() {
   updateStatus('Loading lessons...');
   try {
-    const { data, error } = await supabase.from('lessons').select('*');
+    const { data, error } = await supabaseClient.from('lessons').select('*');
     if (error) throw error;
 
     lessonsData = data || [];
@@ -708,7 +708,7 @@ function setupEventListeners() {
         date: targetDate
       }));
 
-      const { error } = await supabase.from('lessons').upsert(payloads);
+      const { error } = await supabaseClient.from('lessons').upsert(payloads);
       if (error) throw error;
 
       await loadLessons();
@@ -743,7 +743,7 @@ function setupEventListeners() {
     updateStatus('Saving to Supabase...');
 
     try {
-      const { error } = await supabase.from('lessons').upsert(payload);
+      const { error } = await supabaseClient.from('lessons').upsert(payload);
       if (error) throw error;
 
       await loadLessons();
@@ -763,7 +763,7 @@ function setupEventListeners() {
         modal.classList.add('hidden');
         updateStatus('Deleting plan...');
         try {
-          const { error } = await supabase.from('lessons').delete().eq('id', id);
+          const { error } = await supabaseClient.from('lessons').delete().eq('id', id);
           if (error) throw error;
 
           await loadLessons();
