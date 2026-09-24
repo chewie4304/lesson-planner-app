@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Added
+- **Procedure Drag-and-Drop**: Added interactive HTML5 drag-and-drop handles (`⠿`) to reorder procedure steps on the fly.
+- **Auto Dash Formatting**: Real-time conversion of `--` into an en-dash (`–`) and `---` into an em-dash (`—`) in all lesson editor input fields.
+
+### Fixed
+- Fixed array splice logic in procedure checklist reordering.
+- Prevented drag events from intercepting inline text edit clicks.
+
 ## [2.1.0] - 2026-09-23
 
 ### Added
