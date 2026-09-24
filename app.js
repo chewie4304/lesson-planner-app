@@ -356,7 +356,9 @@ async function navigateLesson(offset) {
 }
 
 // --- Objectives Editing & Rendering ---
-function editObjectiveItem(idx) {
+
+function editObjectiveItem(e, idx) {
+  if (e) e.stopPropagation();
   editingState = { type: 'objective', idx };
   renderObjectivesBadges();
 }
@@ -392,7 +394,7 @@ function renderObjectivesBadges() {
     }
     return `
       <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-sky-50 text-sky-800 border border-sky-200 rounded-md text-xs font-medium shadow-sm">
-        <span class="cursor-pointer hover:underline" onclick="editObjectiveItem(${idx})" title="Click to edit">🎯 ${escapeHtml(obj)}</span>
+        <span class="cursor-pointer hover:underline" onclick="editObjectiveItem(event, ${idx})" title="Click to edit">🎯 ${escapeHtml(obj)}</span>
         <button type="button" onclick="removeObjectiveItem(${idx})" class="text-sky-400 hover:text-red-600 font-bold text-sm leading-none">&times;</button>
       </span>
     `;
@@ -412,7 +414,8 @@ function removeObjectiveItem(idx) {
 }
 
 // --- Assessment Editing & Rendering ---
-function editAssessmentItem(idx) {
+function editAssessmentItem(e, idx) {
+  if (e) e.stopPropagation();
   editingState = { type: 'assessment', idx };
   renderAssessmentBadges();
 }
@@ -448,7 +451,7 @@ function renderAssessmentBadges() {
     }
     return `
       <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-purple-50 text-purple-800 border border-purple-200 rounded-md text-xs font-medium shadow-sm">
-        <span class="cursor-pointer hover:underline" onclick="editAssessmentItem(${idx})" title="Click to edit">📊 ${escapeHtml(item)}</span>
+        <span class="cursor-pointer hover:underline" onclick="editAssessmentItem(event, ${idx})" title="Click to edit">📊 ${escapeHtml(item)}</span>
         <button type="button" onclick="removeAssessmentItem(${idx})" class="text-purple-400 hover:text-red-600 font-bold text-sm leading-none">&times;</button>
       </span>
     `;
@@ -468,7 +471,8 @@ function removeAssessmentItem(idx) {
 }
 
 // --- Materials Editing & Rendering ---
-function editMaterialTextItem(idx) {
+function editMaterialTextItem(e, idx) {
+  if (e) e.stopPropagation();
   editingState = { type: 'material', idx };
   renderMaterialsBadges();
 }
@@ -507,7 +511,7 @@ function renderMaterialsBadges() {
     }
     return `
       <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-md text-xs font-medium shadow-sm">
-        <span class="cursor-pointer hover:underline" onclick="editMaterialTextItem(${idx})" title="Click to edit">📦 ${escapeHtml(item)}</span>
+        <span class="cursor-pointer hover:underline" onclick="editMaterialTextItem(event, ${idx})" title="Click to edit">📦 ${escapeHtml(item)}</span>
         <button type="button" onclick="removeMaterialTextItem(${idx})" class="text-emerald-400 hover:text-red-600 font-bold text-sm leading-none">&times;</button>
       </span>
     `;
@@ -544,6 +548,7 @@ function removeAttachedLink(idx) {
 
 // --- Procedure Drag-and-Drop & Inline Editing ---
 function handleDragStart(e, idx) {
+  if (editingState.type === 'procedure') return;
   draggedStepIndex = idx;
   e.dataTransfer.effectAllowed = 'move';
   e.dataTransfer.setData('text/plain', String(idx));
@@ -573,7 +578,8 @@ function handleDragEnd(e) {
   draggedStepIndex = null;
 }
 
-function editProcedureStep(idx) {
+function editProcedureStep(e, idx) {
+  if (e) e.stopPropagation();
   editingState = { type: 'procedure', idx };
   renderProcedureChecklist();
 }
@@ -629,7 +635,7 @@ function renderProcedureChecklist() {
           <input type="checkbox" ${step.completed ? 'checked' : ''} onchange="toggleProcedureStep(${idx})"
                  class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer flex-shrink-0">
           <span class="text-xs font-medium ${step.completed ? 'line-through text-slate-400' : 'text-slate-800'} break-words cursor-pointer hover:underline flex-1"
-                onclick="editProcedureStep(${idx})" title="Click to edit step">
+                onclick="editProcedureStep(event, ${idx})" title="Click to edit step">
             <span class="font-bold text-slate-400 mr-1">${idx + 1}.</span>${escapeHtml(step.text)}
           </span>
         </div>

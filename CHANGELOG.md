@@ -9,11 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.1] - 2026-09-24
+
 ### Added
-- **Procedure Drag-and-Drop**: Added interactive HTML5 drag-and-drop handles (`⠿`) to reorder procedure steps on the fly.
-- **Auto Dash Formatting**: Real-time conversion of `--` into an en-dash (`–`) and `---` into an em-dash (`—`) in all lesson editor input fields.
+- **Direct Inline Text Editing**: Click directly on any Objective badge, Assessment method, Material item, or Procedure step text to edit it in place.
+- **Procedure Drag-and-Drop**: Added interactive drag-and-drop handles (`⠿`) to easily reorder procedure checklist steps.
+- **Auto Dash Replacement**: Typing `--` or `---` in any input field automatically converts to an en-dash (`–`) or em-dash (`—`).
 
 ### Fixed
+- Resolved click event propagation so clicking text triggers inline editing cleanly without initiating drag actions.
 - Fixed array splice logic in procedure checklist reordering.
 - Prevented drag events from intercepting inline text edit clicks.
 
