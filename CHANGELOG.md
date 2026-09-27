@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.4] - 2026-09-27
+
+### Added
+- **Calendar Respects Custom Lesson Order**: Same-time-slot lessons now render on the calendar in the order set via the reorder panel, instead of alphabetically.
+- **Drag-to-Reorder on Calendar**: Lessons can be dragged directly within the calendar view. Dragging a lesson left/right among other lessons in the same time slot inserts it at the dropped position based on mouse release location (since FullCalendar doesn't rearrange same-slot columns during a drag), while dragging to a different day/time still moves it as before.
+- **Drop Position Indicator**: A live vertical indicator bar now tracks the pointer during a same-time-slot drag, snapping to the exact gap where the lesson will be inserted.
+
+### Fixed
+- **Modal Out of Sync After Calendar Drag**: Dragging a lesson between time slots on the calendar now also refreshes the open edit modal's lesson counter and same-time reorder panel, so they no longer show stale counts after the lesson moves to a different day/time.
+- **Reorder Race Condition Causing Reverted Changes**: Fixed a bug where dragging lessons in quick succession could save out of order, silently reverting an earlier drag's result after a page refresh. All lesson reorder saves (calendar drags and the modal reorder panel) are now queued and processed one at a time.
+- **Calendar Drag Could Silently Fail to Save**: Hardened the calendar drag handler so the date/time move and modal/counter refresh always happen even if the drop-position calculation runs into trouble, instead of the whole update being silently skipped while the calendar still looked correct.
+
 ## [2.1.3] - 2026-09-27
 
 ### Added

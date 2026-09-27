@@ -164,6 +164,9 @@ function initCalendar() {
     slotMaxTime: '18:00:00',
     expandRows: true,
     selectable: true,
+    editable: true,
+    eventDurationEditable: false,
+    eventOrder: 'sortOrder',
     datesSet: function () {
       setTimeout(renderSpecialNotesRow, 100);
     },
@@ -175,6 +178,15 @@ function initCalendar() {
       if (lesson) {
         openModalForEdit(lesson);
       }
+    },
+    eventDidMount: function (info) {
+      info.el.setAttribute('data-lesson-id', String(info.event.id));
+    },
+    eventDragStart: function (info) {
+      handleCalendarEventDragStart(info);
+    },
+    eventDragStop: function (info) {
+      handleCalendarEventDragStop(info);
     }
   });
   calendar.render();
@@ -216,11 +228,233 @@ function renderEventsOnCalendar() {
       start: startIso,
       end: endIso,
       backgroundColor: color.bg,
-      borderColor: color.border
+      borderColor: color.border,
+      sortOrder: getLessonSortOrder(lesson),
+      extendedProps: { sortOrder: getLessonSortOrder(lesson) }
     };
   });
   calendar.addEventSource(events);
 }
+
+// Serializes any operation that reorders/saves lessons sharing a time slot (calendar
+// drags, modal reorder panel) so overlapping async saves can't complete out of order
+// and clobber each other's changes when the user reorders quickly in succession.
+let lessonMutationQueue = Promise.resolve();
+function enqueueLessonMutation(taskFn) {
+  const run = lessonMutationQueue.then(taskFn, taskFn);
+  lessonMutationQueue = run.catch(() => {});
+  return run;
+}
+
+// Remembers the same-time-slot lesson order present before a calendar drag begins,
+// so drag stop can tell whether the visual left-to-right order actually changed.
+let calendarDragOriginalOrder = null;
+
+function getSameSlotIds(date, time, excludeId) {
+  return lessonsData
+    .filter(l => {
+      if (excludeId !== undefined && String(l.id) === String(excludeId)) return false;
+      const d = l.date ? String(l.date).split('T').at(0) : '';
+      const t = formatTimeForInput(l.startTime) || '00:00';
+      return d === date && t === time;
+    })
+    .map(l => String(l.id));
+}
+
+function handleCalendarEventDragStart(info) {
+  const lesson = lessonsData.find(l => String(l.id) === String(info.event.id));
+  if (!lesson) { calendarDragOriginalOrder = null; return; }
+  const date = lesson.date ? String(lesson.date).split('T').at(0) : '';
+  const time = formatTimeForInput(lesson.startTime) || '00:00';
+  const ids = getSameSlotIds(date, time).sort((a, b) => {
+    const la = lessonsData.find(l => String(l.id) === a);
+    const lb = lessonsData.find(l => String(l.id) === b);
+    return getLessonSortOrder(la) - getLessonSortOrder(lb);
+  });
+  calendarDragOriginalOrder = { date, time, ids };
+
+  setupCalendarDragIndicator(date, time, info.event.id);
+}
+
+// Live drop-position feedback: a vertical bar that tracks the pointer and
+// snaps to the gap between same-slot siblings where the lesson would land.
+let calendarDragIndicatorEl = null;
+let calendarDragMoveHandler = null;
+let calendarDragIndicatorRects = null;
+
+function setupCalendarDragIndicator(date, time, movedId) {
+  const siblingIds = getSameSlotIds(date, time, movedId);
+  if (siblingIds.length === 0) return;
+
+  const rects = siblingIds
+    .map(id => document.querySelector(`.fc-event[data-lesson-id="${CSS.escape(id)}"]`))
+    .filter(Boolean)
+    .map(el => el.getBoundingClientRect())
+    .sort((a, b) => a.left - b.left);
+  if (rects.length === 0) return;
+
+  calendarDragIndicatorRects = rects;
+
+  const indicator = document.createElement('div');
+  indicator.id = 'calendar-drag-indicator';
+  indicator.style.cssText = `position:fixed; top:${rects[0].top}px; height:${rects[0].height}px; width:3px; background:#4f46e5; border-radius:2px; z-index:9999; pointer-events:none; box-shadow:0 0 5px rgba(79,70,229,0.9); display:none;`;
+  document.body.appendChild(indicator);
+  calendarDragIndicatorEl = indicator;
+
+  calendarDragMoveHandler = (e) => {
+    const x = typeof e.clientX === 'number' ? e.clientX : (e.touches && e.touches[0] ? e.touches[0].clientX : null);
+    if (typeof x !== 'number' || !calendarDragIndicatorRects || !calendarDragIndicatorEl) return;
+
+    let insertIndex = calendarDragIndicatorRects.findIndex(r => x < (r.left + r.right) / 2);
+    if (insertIndex === -1) insertIndex = calendarDragIndicatorRects.length;
+
+    const targetX = insertIndex === 0
+      ? calendarDragIndicatorRects[0].left
+      : insertIndex === calendarDragIndicatorRects.length
+        ? calendarDragIndicatorRects[calendarDragIndicatorRects.length - 1].right
+        : (calendarDragIndicatorRects[insertIndex - 1].right + calendarDragIndicatorRects[insertIndex].left) / 2;
+
+    calendarDragIndicatorEl.style.left = `${targetX - 1.5}px`;
+    calendarDragIndicatorEl.style.display = 'block';
+  };
+  document.addEventListener('pointermove', calendarDragMoveHandler);
+  document.addEventListener('touchmove', calendarDragMoveHandler, { passive: true });
+}
+
+function teardownCalendarDragIndicator() {
+  if (calendarDragMoveHandler) {
+    document.removeEventListener('pointermove', calendarDragMoveHandler);
+    document.removeEventListener('touchmove', calendarDragMoveHandler);
+    calendarDragMoveHandler = null;
+  }
+  if (calendarDragIndicatorEl) {
+    calendarDragIndicatorEl.remove();
+    calendarDragIndicatorEl = null;
+  }
+  calendarDragIndicatorRects = null;
+}
+
+// Handles dragging a lesson event directly on the calendar.
+// Moving to an empty slot changes its date/time like a normal drag.
+// Dropping onto the same slot as other lessons (including left/right within
+// the same time) inserts it among them based on where the mouse was released,
+// since FullCalendar's own layout doesn't reflect drop position for same-slot events.
+// Extracts the drop details synchronously (FullCalendar's info.event may become
+// stale once other queued moves rebuild the calendar) and queues the actual
+// reorder/save so overlapping drags can't race and clobber each other's writes.
+function handleCalendarEventDragStop(info) {
+  teardownCalendarDragIndicator();
+
+  const movedId = String(info.event.id);
+  const dropX = info.jsEvent && typeof info.jsEvent.clientX === 'number'
+    ? info.jsEvent.clientX
+    : (info.jsEvent && info.jsEvent.changedTouches && info.jsEvent.changedTouches[0] ? info.jsEvent.changedTouches[0].clientX : null);
+  const newDate = info.event.startStr.split('T').at(0);
+  const newStartTime = formatTimeForInput(info.event.startStr.split('T').at(1));
+  const newEndTime = formatTimeForInput(info.event.endStr ? info.event.endStr.split('T').at(1) : '') || newStartTime;
+  const priorOrder = calendarDragOriginalOrder;
+  calendarDragOriginalOrder = null;
+
+  enqueueLessonMutation(() => applyCalendarEventMove({ movedId, newDate, newStartTime, newEndTime, dropX, priorOrder }));
+}
+
+async function applyCalendarEventMove({ movedId, newDate, newStartTime, newEndTime, dropX, priorOrder }) {
+  const movedLesson = lessonsData.find(l => String(l.id) === movedId);
+  if (!movedLesson) return;
+
+  const timeChanged = !priorOrder || priorOrder.date !== newDate || priorOrder.time !== newStartTime;
+
+  const siblingIds = getSameSlotIds(newDate, newStartTime, movedId);
+  if (siblingIds.length === 0 && !timeChanged) return;
+
+  // Default to simply appending the lesson to the target slot. This guarantees the
+  // date/time move and group membership are always applied even if the fancier
+  // drop-position calculation below fails for any reason (it must never block this).
+  let orderedIds = [...siblingIds, movedId];
+
+  if (siblingIds.length > 0) {
+    try {
+      // Wait a frame for FullCalendar to settle sibling column widths after the drop
+      await new Promise(resolve => requestAnimationFrame(resolve));
+
+      // Siblings keep their own rendered positions during the drag, so their
+      // rects reliably reflect the visual column order to insert the dropped lesson into.
+      const siblingRects = siblingIds
+        .map(id => {
+          const el = document.querySelector(`.fc-event[data-lesson-id="${CSS.escape(id)}"]`);
+          return el ? { id, rect: el.getBoundingClientRect() } : null;
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.rect.left - b.rect.left);
+
+      if (siblingRects.length === siblingIds.length) {
+        let insertIndex = siblingRects.length;
+        if (dropX !== null) {
+          insertIndex = siblingRects.findIndex(s => dropX < (s.rect.left + s.rect.right) / 2);
+          if (insertIndex === -1) insertIndex = siblingRects.length;
+        }
+        const positioned = siblingRects.map(s => s.id);
+        positioned.splice(insertIndex, 0, movedId);
+        orderedIds = positioned;
+      }
+    } catch (err) {
+      console.error('Drop-position calculation failed, appending lesson to the slot instead:', err);
+    }
+  }
+
+  if (!timeChanged && priorOrder && JSON.stringify(orderedIds) === JSON.stringify(priorOrder.ids)) return;
+
+  // The date/time move must always take effect, even if building the full
+  // group payload below fails for any reason (e.g. malformed sibling data).
+  movedLesson.date = newDate;
+  movedLesson.startTime = newStartTime;
+  movedLesson.endTime = newEndTime;
+
+  try {
+    const group = orderedIds.map(id => lessonsData.find(l => String(l.id) === id)).filter(Boolean);
+
+    const payloads = group.map((lesson, index) => {
+      const mat = parseMaterialsField(lesson.materials);
+      mat.sortOrder = index + 1;
+
+      return {
+        id: String(lesson.id),
+        title: lesson.title || '',
+        subject: lesson.subject || '',
+        grade: lesson.grade || '',
+        date: lesson.date ? String(lesson.date).split('T').at(0) : '',
+        startTime: formatTimeForInput(lesson.startTime),
+        endTime: formatTimeForInput(lesson.endTime),
+        objectives: parseListField(lesson.objectives),
+        procedure: parseProcedureField(lesson.procedure),
+        assessment: parseListField(lesson.assessment),
+        materials: mat,
+        status: lesson.status || 'Scheduled'
+      };
+    });
+
+    payloads.forEach(updated => {
+      const idx = lessonsData.findIndex(l => String(l.id) === String(updated.id));
+      if (idx !== -1) lessonsData[idx] = updated;
+    });
+
+    updateStatus('Saving lesson order...');
+    const { error } = await supabaseClient.from('lessons').upsert(payloads);
+    if (error) throw error;
+    updateStatus('All changes synced');
+  } catch (err) {
+    console.error('Calendar drag reorder error:', err);
+    updateStatus('Error saving lesson order', true);
+  } finally {
+    // Keep an open edit modal / reorder panel in sync with calendar-driven changes,
+    // regardless of whether the fuller group save above succeeded.
+    renderEventsOnCalendar();
+    renderSameTimeReorderList();
+    updateModalNavControls();
+  }
+}
+window.handleCalendarEventDragStart = handleCalendarEventDragStart;
+window.handleCalendarEventDragStop = handleCalendarEventDragStop;
 
 // Robust JSON Parsing Helpers
 function safeJsonParse(raw) {
@@ -482,7 +716,7 @@ async function handleSameTimeDrop(e, targetIdx) {
   // 3. Persist to Supabase
   updateStatus('Saving lesson order...');
   try {
-    const { error } = await supabaseClient.from('lessons').upsert(payloads);
+    const { error } = await enqueueLessonMutation(() => supabaseClient.from('lessons').upsert(payloads));
     if (error) throw error;
     updateStatus('Lesson order saved');
   } catch (err) {
