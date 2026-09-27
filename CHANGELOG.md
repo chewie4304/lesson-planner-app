@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.5] - 2026-09-27
+
+### Added
+- **Dynamic Footer Version Display**: Added a discreet page footer displaying the application version (`#app-version`) at the bottom of the layout.
+- **Automated Release Tag Sync**: Integrated `loadAppVersion()` in `app.js` to automatically fetch and display the latest Git release tag directly from the GitHub API on page load, falling back gracefully to an internal constant when offline.
+
 ## [2.1.4] - 2026-09-27
 
 ### Added

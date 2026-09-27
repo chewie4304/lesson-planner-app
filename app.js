@@ -4,6 +4,29 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+// App Version Configuration & GitHub Dynamic Tag Fetcher
+const APP_VERSION = 'v2.1.4';
+
+async function loadAppVersion() {
+  const versionEl = document.getElementById('app-version');
+  if (!versionEl) return;
+
+  try {
+    const res = await fetch('https://api.github.com/repos/chewie4304/lesson-planner-app/tags');
+    if (res.ok) {
+      const tags = await res.json();
+      if (tags && tags.length > 0) {
+        versionEl.innerText = tags[0].name; // Uses latest git tag automatically
+        return;
+      }
+    }
+  } catch (err) {
+    // If offline or rate-limited, fall back quietly
+  }
+
+  versionEl.innerText = APP_VERSION;
+}
+
 let calendar;
 let lessonsData = [];
 let specialNotes = JSON.parse(localStorage.getItem('specialNotes') || '{}');
@@ -117,6 +140,8 @@ window.updateGradeColorLabel = updateGradeColorLabel;
 window.renderGradeColorPalette = renderGradeColorPalette;
 
 document.addEventListener('DOMContentLoaded', () => {
+  loadAppVersion(); // <--- Add this line here
+
   if (typeof FullCalendar === 'undefined') {
     updateStatus('Error: FullCalendar failed to load.', true);
     return;
@@ -242,7 +267,7 @@ function renderEventsOnCalendar() {
 let lessonMutationQueue = Promise.resolve();
 function enqueueLessonMutation(taskFn) {
   const run = lessonMutationQueue.then(taskFn, taskFn);
-  lessonMutationQueue = run.catch(() => {});
+  lessonMutationQueue = run.catch(() => { });
   return run;
 }
 
