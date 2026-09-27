@@ -7,8 +7,17 @@
   <title>Lesson Planner</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Supabase JS Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <!-- FullCalendar CDN -->
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+  <style>
+    /* Ensure overlapping timeGrid events divide the full day column width equally */
+    .fc-timegrid-event-harness-inset>.fc-timegrid-event,
+    .fc-timegrid-event-harness>.fc-timegrid-event {
+      margin-right: 0 !important;
+    }
+  </style>
 </head>
 
 <body class="bg-slate-100 text-slate-800 p-6">
@@ -16,21 +25,22 @@
   <!-- Two-Column Main Layout Container -->
   <main class="max-w-7xl mx-auto flex flex-col md:flex-row gap-6 items-start">
 
-    <!-- Left Column: Widget Column (Empty Header + Widget Card) -->
+    <!-- Left Column: Widget Column -->
     <div class="flex-shrink-0 flex flex-col">
-      <!-- Empty Header Placeholder to match header height on right -->
       <div class="mb-6 h-[32px] hidden md:block"></div>
-
-      <!-- Widget Card Container -->
       <aside class="w-fit bg-white p-2 rounded-xl shadow-sm border border-slate-200 flex justify-center">
         <script src="https://halfstaff.org/widgets/us-half-staff-flags.js"></script>
       </aside>
+
+      <!-- 📊 Daily Assignments Grid Button -->
+      <button id="open-assessments-grid-btn" type="button"
+        class="mt-3 w-full px-3 py-2 bg-indigo-600 text-white text-xs font-semibold rounded-lg shadow-sm hover:bg-indigo-700 flex items-center justify-center gap-1.5 transition-colors">
+        📊 Daily Assignments
+      </button>
     </div>
 
-    <!-- Right Column: Calendar Column (Header + Calendar Card) -->
+    <!-- Right Column: Calendar Workspace -->
     <div class="flex-1 min-w-0 w-full flex flex-col">
-
-      <!-- Header over the calendar column -->
       <header class="mb-6 flex justify-between items-center min-h-[32px]">
         <h1 class="text-2xl font-bold text-slate-900">📚 Lesson Planner</h1>
         <div id="sync-status" class="text-sm font-medium text-slate-500">
@@ -38,161 +48,343 @@
         </div>
       </header>
 
-      <!-- Calendar Card Container -->
       <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
         <div id="calendar"></div>
       </div>
-
     </div>
 
   </main>
 
-  <!-- Lesson Plan Editor Modal -->
+  <!-- Expanded Wide Lesson Plan Editor Modal (max-w-5xl) -->
   <div id="lesson-modal" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 relative max-h-[90vh] overflow-y-auto">
-      <button id="close-modal"
+    <div class="bg-white rounded-xl shadow-xl max-w-5xl w-full p-6 relative max-h-[92vh] overflow-y-auto">
+      <button id="close-modal" type="button"
         class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
-      <h2 id="modal-title" class="text-xl font-bold mb-4">Lesson Plan</h2>
-      <form id="lesson-form" class="space-y-4">
+
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between pb-3 border-b border-slate-200 mb-4">
+        <h3 id="modal-title" class="text-lg font-bold text-slate-800">Edit Lesson Plan</h3>
+
+        <!-- Navigation Controls (Right Side) -->
+        <div id="modal-nav-controls" class="hidden flex items-center gap-1.5 pr-10 relative">
+          <button type="button" id="prev-lesson-btn"
+            class="px-2 py-1 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded border border-slate-300 disabled:opacity-40 transition-colors">←
+            Prev</button>
+
+          <!-- Interactive Counter Badge & Reorder Toggle -->
+          <button type="button" id="lesson-nav-counter" onclick="toggleSameTimeReorderPanel()"
+            class="text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-full border border-indigo-200 transition-colors flex items-center gap-1 shadow-sm"
+            title="Click to reorder lessons at this time">
+            Lesson 1 of 1 ▾
+          </button>
+
+          <button type="button" id="next-lesson-btn"
+            class="px-2 py-1 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded border border-slate-300 disabled:opacity-40 transition-colors">Next
+            →</button>
+
+          <!-- Floating Reorder Dropdown Panel -->
+          <div id="same-time-reorder-panel"
+            class="hidden absolute top-9 right-0 z-50 w-64 bg-white border border-slate-200 rounded-lg shadow-xl p-3 text-left">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-2 mb-2">
+              <span class="text-xs font-bold text-slate-700">Reorder Same-Time Lessons</span>
+              <button type="button" onclick="toggleSameTimeReorderPanel()"
+                class="text-slate-400 hover:text-slate-600 text-xs font-bold">&times;</button>
+            </div>
+            <div id="same-time-lessons-list" class="space-y-1.5 max-h-48 overflow-y-auto"></div>
+          </div>
+        </div>
+      </div>
+
+      <form id="lesson-form" class="space-y-6">
         <input type="hidden" id="lesson-id">
-        <div>
-          <label class="block text-sm font-medium text-slate-700">Title</label>
-          <input type="text" id="lesson-title" required class="w-full mt-1 p-2 border rounded-md">
+
+        <!-- Top Row: Lesson Title & Metadata Grid -->
+        <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-3">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="md:col-span-2">
+              <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider">Lesson Title</label>
+              <input type="text" id="lesson-title" required placeholder="e.g., Intro to Photosynthesis"
+                class="w-full mt-1 p-2 border rounded-md bg-white text-sm">
+            </div>
+
+            <!-- Subject Field -->
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider">Subject</label>
+              <input type="text" id="lesson-subject" list="subject-list" placeholder="e.g., Biology"
+                class="w-full mt-1 p-2 border rounded-md bg-white text-sm">
+              <datalist id="subject-list"></datalist>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <!-- Grade/Student Field -->
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider">Grade/Student</label>
+              <input type="text" id="lesson-grade" list="grade-list" placeholder="e.g., 9th Grade, Alex S."
+                class="w-full mt-1 p-2 border rounded-md bg-white text-sm">
+              <datalist id="grade-list"></datalist>
+              <div class="mt-2">
+                <div class="flex items-center justify-between mb-1">
+                  <label class="block text-[11px] font-semibold text-slate-500">Color Tag:</label>
+                  <span id="selected-color-label" class="text-[11px] font-medium text-slate-400">Default</span>
+                </div>
+                <div id="grade-color-palette" class="flex flex-wrap gap-1.5 items-center"></div>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider">Date</label>
+              <input type="date" id="lesson-date" required class="w-full mt-1 p-2 border rounded-md bg-white text-sm">
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider">Start Time</label>
+              <input type="time" id="lesson-start" required class="w-full mt-1 p-2 border rounded-md bg-white text-sm">
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider">End Time</label>
+              <input type="time" id="lesson-end" required class="w-full mt-1 p-2 border rounded-md bg-white text-sm">
+            </div>
+          </div>
         </div>
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-medium text-slate-700">Subject</label>
-            <input type="text" id="lesson-subject" class="w-full mt-1 p-2 border rounded-md">
+
+        <!-- Main 2-Column Content Layout -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+          <!-- Left Column: Objectives, Assessment, Materials -->
+          <div class="space-y-5">
+            <!-- Objectives Section -->
+            <div class="bg-white p-3.5 border border-slate-200 rounded-lg shadow-sm">
+              <div class="flex justify-between items-center mb-1">
+                <label class="block text-sm font-semibold text-slate-800">🎯 Learning Objectives</label>
+                <span class="text-[11px] text-slate-400">Press Enter to add</span>
+              </div>
+              <input type="text" id="lesson-objectives-input" placeholder="Type an objective and press Enter..."
+                class="w-full p-2 text-sm border rounded-md">
+              <div id="objectives-badges-container" class="flex flex-wrap gap-1.5 mt-2"></div>
+            </div>
+
+            <!-- Assessment Section -->
+            <div class="bg-white p-3.5 border border-slate-200 rounded-lg shadow-sm">
+              <div class="flex justify-between items-center mb-1">
+                <label class="block text-sm font-semibold text-slate-800">📊 Assessment & Checks</label>
+                <span class="text-[11px] text-slate-400">Press Enter to add</span>
+              </div>
+              <input type="text" id="lesson-assessment-input" placeholder="Type an assessment method and press Enter..."
+                class="w-full p-2 text-sm border rounded-md">
+              <div id="assessment-badges-container" class="flex flex-wrap gap-1.5 mt-2"></div>
+            </div>
+
+            <!-- Materials & Links Section -->
+            <div class="bg-white p-3.5 border border-slate-200 rounded-lg shadow-sm">
+              <div class="flex justify-between items-center mb-1">
+                <label class="block text-sm font-semibold text-slate-800">📦 Materials & Resources</label>
+                <button type="button" id="toggle-add-link-btn"
+                  class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1">
+                  + Add Web Link
+                </button>
+              </div>
+              <input type="text" id="lesson-materials-input" placeholder="Type a material/item and press Enter..."
+                class="w-full p-2 text-sm border rounded-md">
+
+              <!-- Inline Link Adding Form -->
+              <div id="inline-link-box"
+                class="hidden mt-2 p-3 bg-slate-50 border border-slate-200 rounded-md space-y-2">
+                <div class="grid grid-cols-2 gap-2">
+                  <input type="text" id="link-title-input" placeholder="Link Title (e.g. Unit 3 Slides)"
+                    class="p-2 text-xs border rounded-md bg-white">
+                  <input type="url" id="link-url-input" placeholder="URL (https://...)"
+                    class="p-2 text-xs border rounded-md bg-white">
+                </div>
+                <div class="flex justify-end gap-2">
+                  <button type="button" id="cancel-link-btn"
+                    class="px-3 py-1 text-xs border rounded bg-white hover:bg-slate-100">Cancel</button>
+                  <button type="button" id="confirm-link-btn"
+                    class="px-3 py-1 text-xs font-semibold bg-indigo-600 text-white rounded hover:bg-indigo-700">Add
+                    Link</button>
+                </div>
+              </div>
+
+              <!-- Materials & Links Badges Container -->
+              <div id="materials-badges-container" class="flex flex-wrap gap-1.5 mt-2"></div>
+            </div>
           </div>
-          <div>
-            <label class="block text-sm font-medium text-slate-700">Grade Level</label>
-            <input type="text" id="lesson-grade" class="w-full mt-1 p-2 border rounded-md">
+
+          <!-- Right Column: Interactive Procedure / Steps Checklist -->
+          <div
+            class="bg-white p-4 border border-slate-200 rounded-lg shadow-sm space-y-3 flex flex-col h-full min-h-[380px]">
+            <div class="flex justify-between items-center">
+              <div>
+                <label class="block text-sm font-semibold text-slate-800">📝 Lesson Procedure & Steps</label>
+                <p class="text-[11px] text-slate-400">Press Enter to add steps. Check boxes to mark completion during
+                  class.</p>
+              </div>
+              <span id="procedure-count-badge"
+                class="text-[11px] font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">0
+                steps</span>
+            </div>
+            <input type="text" id="lesson-procedure-input" placeholder="Type next step and press Enter..."
+              class="w-full p-2 text-sm border rounded-md">
+
+            <!-- Interactive Step Checklist Container -->
+            <div id="procedure-checklist-container" class="space-y-2 flex-1 overflow-y-auto max-h-[340px] pt-1"></div>
           </div>
         </div>
-        <div class="grid grid-cols-3 gap-2">
-          <div>
-            <label class="block text-sm font-medium text-slate-700">Date</label>
-            <input type="date" id="lesson-date" required class="w-full mt-1 p-2 border rounded-md">
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-slate-700">Start Time</label>
-            <input type="time" id="lesson-start" required class="w-full mt-1 p-2 border rounded-md">
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-slate-700">End Time</label>
-            <input type="time" id="lesson-end" required class="w-full mt-1 p-2 border rounded-md">
-          </div>
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-slate-700">Objectives</label>
-          <textarea id="lesson-objectives" rows="2" class="w-full mt-1 p-2 border rounded-md"></textarea>
-        </div>
-        <div>
+
+        <!-- Interactive Multi-Date Calendar Duplication Panel -->
+        <div id="duplicate-panel" class="hidden p-3.5 bg-amber-50 border border-amber-200 rounded-lg space-y-3">
           <div class="flex justify-between items-center">
-            <label class="block text-sm font-medium text-slate-700">Materials & Resources</label>
-            <button type="button" id="open-link-modal-btn"
-              class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 transition-colors">
-              + Add Link
-            </button>
+            <label class="block text-xs font-bold text-amber-900">Select Target Date(s) on Calendar:</label>
+            <span id="dup-selected-count" class="text-[11px] font-semibold text-amber-700">0 dates selected</span>
           </div>
-          <textarea id="lesson-materials" rows="2" placeholder="e.g., Textbooks, Graph paper, or click + Add Link above"
-            class="w-full mt-1 p-2 border rounded-md"></textarea>
-          <div id="materials-links-preview" class="flex flex-wrap gap-2 mt-2"></div>
+
+          <div class="bg-white border border-amber-200 rounded-md p-2 shadow-sm">
+            <div class="flex justify-between items-center mb-2 px-1">
+              <button type="button" id="prev-dup-month-btn"
+                class="text-xs font-bold text-slate-600 hover:text-slate-900 px-2 py-0.5 rounded border hover:bg-slate-100">&larr;
+                Prev</button>
+              <span id="dup-month-title" class="text-xs font-bold text-slate-800"></span>
+              <button type="button" id="next-dup-month-btn"
+                class="text-xs font-bold text-slate-600 hover:text-slate-900 px-2 py-0.5 rounded border hover:bg-slate-100">Next
+                &rarr;</button>
+            </div>
+
+            <div class="grid grid-cols-7 text-center text-[10px] font-semibold text-slate-400 mb-1">
+              <div>Su</div>
+              <div>Mo</div>
+              <div>Tu</div>
+              <div>We</div>
+              <div>Th</div>
+              <div>Fr</div>
+              <div>Sa</div>
+            </div>
+            <div id="dup-mini-calendar-days" class="grid grid-cols-7 gap-1 text-center text-xs"></div>
+          </div>
+
+          <div class="flex items-center justify-between text-[11px] pt-1 border-t border-amber-200">
+            <div class="flex items-center gap-1">
+              <input type="date" id="dup-range-start" class="p-1 text-[11px] border rounded bg-white w-28">
+              <span class="text-amber-800">to</span>
+              <input type="date" id="dup-range-end" class="p-1 text-[11px] border rounded bg-white w-28">
+              <button type="button" id="add-range-btn"
+                class="px-2 py-1 text-xs font-semibold bg-amber-600 text-white rounded hover:bg-amber-700">Add
+                Range</button>
+            </div>
+            <button type="button" id="clear-dup-dates-btn"
+              class="text-amber-700 hover:text-red-600 font-semibold underline">Clear All</button>
+          </div>
+
+          <div id="dup-dates-list" class="flex flex-wrap gap-1 max-h-24 overflow-y-auto"></div>
+
+          <button type="button" id="confirm-dup-btn"
+            class="w-full mt-2 py-2 text-xs font-bold bg-amber-600 text-white rounded hover:bg-amber-700 transition-colors shadow-sm">
+            Copy Plan to Selected Target Dates
+          </button>
         </div>
-        <div>
-          <label class="block text-sm font-medium text-slate-700">Procedure / Steps</label>
-          <textarea id="lesson-procedure" rows="3" class="w-full mt-1 p-2 border rounded-md"></textarea>
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-slate-700">Assessment</label>
-          <textarea id="lesson-assessment" rows="2" class="w-full mt-1 p-2 border rounded-md"></textarea>
-        </div>
+
+        <!-- Footer Actions Bar -->
         <div class="flex justify-between items-center pt-4 border-t">
-          <button type="button" id="delete-btn"
-            class="px-4 py-2 bg-red-100 text-red-600 rounded-md hover:bg-red-200 hidden">Delete</button>
+          <div class="flex gap-2">
+            <button type="button" id="delete-btn"
+              class="px-3 py-2 bg-red-100 text-red-600 text-sm font-medium rounded-md hover:bg-red-200 hidden">Delete</button>
+            <button type="button" id="duplicate-btn"
+              class="px-3 py-2 bg-amber-100 text-amber-800 text-sm font-medium rounded-md hover:bg-amber-200 hidden">Duplicate</button>
+          </div>
+
           <div class="flex gap-2 ml-auto">
-            <button type="button" id="cancel-btn" class="px-4 py-2 border rounded-md hover:bg-slate-50">Cancel</button>
-            <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">Save
-              Plan</button>
+            <button type="button" id="cancel-btn"
+              class="px-4 py-2 border text-sm rounded-md hover:bg-slate-50 font-medium">Cancel</button>
+            <button type="submit" id="save-btn"
+              class="px-4 py-2 bg-indigo-50 text-indigo-700 border border-indigo-200 text-sm font-semibold rounded-md hover:bg-indigo-100 shadow-sm transition-colors">Save</button>
+            <button type="submit" id="save-close-btn"
+              class="px-5 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-md hover:bg-indigo-700 shadow-sm transition-colors">Save
+              & Close</button>
           </div>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- Special Notes Management Modal -->
+  <!-- Daily Special Notes Modal -->
   <div id="note-modal" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center p-4 z-50">
     <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6 relative">
-      <button id="close-note-modal"
+      <button id="close-note-modal" type="button"
         class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
-      <h2 id="note-modal-title" class="text-xl font-bold mb-1">Special Notes</h2>
-      <p id="note-modal-subtitle" class="text-sm text-slate-500 mb-4"></p>
+      <h3 class="text-lg font-bold text-slate-900">Daily Special Notes</h3>
+      <p id="note-modal-subtitle" class="text-xs text-slate-500 mb-4"></p>
 
-      <!-- Notes List -->
       <div id="note-list" class="space-y-2 mb-4 max-h-48 overflow-y-auto"></div>
 
-      <!-- Add Note Form -->
       <form id="note-form" class="flex gap-2">
-        <input type="text" id="new-note-input" placeholder="Add note (e.g., Pajama Day, Field Trip)..." required
-          class="flex-1 p-2 border rounded-md text-sm">
+        <input type="text" id="new-note-input" required placeholder="Add note (e.g., Substitute, Field Trip)..."
+          class="flex-1 p-2 text-sm border rounded-md">
         <button type="submit"
-          class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700">Add</button>
+          class="px-4 py-2 bg-indigo-600 text-white text-sm rounded-md font-medium hover:bg-indigo-700">Add</button>
       </form>
 
-      <div class="mt-4 pt-3 border-t flex justify-end">
+      <div class="mt-4 pt-3 border-t text-right">
         <button type="button" id="done-note-btn"
-          class="px-4 py-2 border rounded-md text-sm hover:bg-slate-50">Done</button>
+          class="px-4 py-1.5 bg-slate-100 text-slate-700 text-sm rounded-md hover:bg-slate-200">Done</button>
       </div>
     </div>
   </div>
 
-  <!-- Custom Confirmation Modal -->
+  <!-- Delete Confirmation Modal -->
   <div id="confirm-modal" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-xl shadow-xl max-w-sm w-full p-6 relative text-center">
-      <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-3 text-red-600 text-xl">
-        ⚠️
-      </div>
-      <h3 id="confirm-modal-title" class="text-lg font-bold text-slate-900 mb-1">Are you sure?</h3>
-      <p id="confirm-modal-message" class="text-sm text-slate-500 mb-5">This action cannot be undone.</p>
-      <div class="flex justify-center gap-3">
+    <div class="bg-white rounded-xl shadow-xl max-w-sm w-full p-6">
+      <h3 id="confirm-modal-title" class="text-lg font-bold text-slate-900 mb-2"></h3>
+      <p id="confirm-modal-message" class="text-sm text-slate-600 mb-6"></p>
+
+      <div class="flex justify-end gap-3">
         <button type="button" id="confirm-cancel-btn"
-          class="px-4 py-2 border rounded-md text-sm hover:bg-slate-50 w-full">Cancel</button>
+          class="px-4 py-2 border text-sm rounded-md hover:bg-slate-50">Cancel</button>
         <button type="button" id="confirm-action-btn"
-          class="px-4 py-2 bg-red-600 text-white rounded-md text-sm hover:bg-red-700 w-full">Delete</button>
+          class="px-4 py-2 bg-red-600 text-white text-sm rounded-md hover:bg-red-700 font-medium">Delete</button>
       </div>
     </div>
   </div>
 
-  <!-- Link Creation Modal -->
-  <div id="link-modal" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-xl shadow-xl max-w-sm w-full p-6 relative">
-      <button id="close-link-modal" type="button"
-        class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
-      <h3 class="text-lg font-bold text-slate-900 mb-1">Add Resource Link</h3>
-      <p class="text-xs text-slate-500 mb-4">Create a clickable badge with custom link text.</p>
+  <!-- Daily Assignments Grid Modal -->
+  <div id="assessments-grid-modal"
+    class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-xl shadow-xl max-w-4xl w-full p-6 relative max-h-[90vh] flex flex-col">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+        <div class="flex items-center gap-2">
+          <h2 class="text-lg font-bold text-slate-900">📊 Daily Assignments Grid</h2>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <button type="button" id="assess-prev-day-btn"
+            class="px-2.5 py-1 text-xs border rounded-md font-medium text-slate-700 bg-white hover:bg-slate-50">&larr;
+            Prev</button>
+          <button type="button" id="assess-today-btn"
+            class="px-3 py-1 text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-md hover:bg-indigo-100">Today</button>
+          <button type="button" id="assess-next-day-btn"
+            class="px-2.5 py-1 text-xs border rounded-md font-medium text-slate-700 bg-white hover:bg-slate-50">Next
+            &rarr;</button>
+          <button id="close-assessments-modal" type="button"
+            class="ml-3 text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+        </div>
+      </div>
 
-      <form id="link-form" class="space-y-3">
-        <div>
-          <label class="block text-xs font-medium text-slate-700">Display Text</label>
-          <input type="text" id="link-text-input" placeholder="e.g., Unit 1 Slide Deck" required
-            class="w-full mt-1 p-2 border rounded-md text-sm">
+      <div class="py-2.5 px-4 my-3 text-center bg-slate-50 border border-slate-200 rounded-lg">
+        <span id="assessments-date-display" class="text-sm font-bold text-slate-800"></span>
+      </div>
+
+      <div id="assessments-grid-container" class="py-2 flex-1 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-3.5">
+      </div>
+
+      <div class="pt-3 mt-2 border-t border-slate-200 flex justify-between items-center">
+        <span class="text-[11px] text-slate-400 italic">Formatted for quick transfer to paper planner</span>
+        <div class="flex gap-2">
+          <button type="button" onclick="window.print()"
+            class="px-3.5 py-1.5 border text-xs font-semibold rounded-md hover:bg-slate-50 text-slate-700">🖨️ Print
+            View</button>
+          <button type="button" id="done-assessments-modal"
+            class="px-4 py-1.5 bg-slate-100 text-slate-700 text-xs font-medium rounded-md hover:bg-slate-200">Close</button>
         </div>
-        <div>
-          <label class="block text-xs font-medium text-slate-700">Destination URL</label>
-          <input type="url" id="link-url-input" placeholder="https://docs.google.com/..." required
-            class="w-full mt-1 p-2 border rounded-md text-sm">
-        </div>
-        <div class="flex justify-end gap-2 pt-3 border-t mt-4">
-          <button type="button" id="cancel-link-btn"
-            class="px-3 py-1.5 border rounded-md text-sm hover:bg-slate-50">Cancel</button>
-          <button type="submit"
-            class="px-3 py-1.5 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700 font-medium">Add
-            Link</button>
-        </div>
-      </form>
+      </div>
     </div>
   </div>
-
 
   <script src="app.js"></script>
 </body>
