@@ -12,6 +12,7 @@ let selectedDupDates = [];
 let miniCalCurrentDate = new Date();
 let currentEditingLessonId = null;
 let draggedSameTimeIndex = null;
+let currentAssessGridDate = new Date().toISOString().split('T')[0];
 
 // Reactive Form Items State
 let currentObjectives = [];
@@ -999,6 +1000,76 @@ function removeDupDate(index) {
   renderMiniCalendar();
 }
 
+// Daily Assignments Grid Modal Helpers
+function openAssessmentsGridModal(targetDate) {
+  if (targetDate) {
+    currentAssessGridDate = targetDate;
+  } else {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    currentAssessGridDate = `${year}-${month}-${day}`;
+  }
+  renderAssessmentsGrid();
+  const modal = document.getElementById('assessments-grid-modal');
+  if (modal) modal.classList.remove('hidden');
+}
+
+function renderAssessmentsGrid() {
+  const dateDisplay = document.getElementById('assessments-date-display');
+  const container = document.getElementById('assessments-grid-container');
+  if (!dateDisplay || !container) return;
+
+  dateDisplay.innerText = currentAssessGridDate;
+
+  const dayLessons = lessonsData.filter(l => {
+    const d = l.date ? String(l.date).split('T').at(0) : '';
+    return d === currentAssessGridDate;
+  });
+
+  if (dayLessons.length === 0) {
+    container.innerHTML = `<div class="col-span-full text-center py-8 text-slate-400 italic text-sm">No lessons scheduled for this date.</div>`;
+    return;
+  }
+
+  let html = '';
+  dayLessons.forEach(lesson => {
+    const assessList = parseListField(lesson.assessment);
+    if (assessList.length === 0) return;
+
+    html += `
+      <div class="p-5 md:p-6 bg-slate-50 border border-slate-200 rounded-lg shadow-sm">
+        <div class="flex items-center justify-between mb-2 pb-1 border-b border-slate-200">
+          <span class="min-w-0 pr-2 font-bold text-slate-800 text-xl md:text-2xl">${escapeHtml(lesson.subject || 'General')}</span>
+          <span class="shrink-0 text-base md:text-lg font-semibold text-slate-600 bg-white px-2 py-0.5 rounded border border-slate-200">${escapeHtml(lesson.grade || '')}</span>
+        </div>
+        <div class="text-lg md:text-xl font-semibold text-indigo-700 mb-3">${escapeHtml(lesson.title || 'Untitled')}</div>
+        <ul class="list-disc list-inside text-lg md:text-2xl text-slate-700 space-y-2">
+          ${assessList.map(a => `<li>${escapeHtml(a)}</li>`).join('')}
+        </ul>
+      </div>
+    `;
+  });
+
+  if (!html) {
+    container.innerHTML = `<div class="col-span-full text-center py-8 text-slate-400 italic text-sm">No assessments entered for lessons on this date.</div>`;
+    return;
+  }
+
+  container.innerHTML = html;
+}
+
+function navigateAssessmentsGrid(offset) {
+  const currentDate = new Date(currentAssessGridDate + 'T00:00:00');
+  currentDate.setDate(currentDate.getDate() + offset);
+  const year = currentDate.getFullYear();
+  const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+  const day = String(currentDate.getDate()).padStart(2, '0');
+  currentAssessGridDate = `${year}-${month}-${day}`;
+  renderAssessmentsGrid();
+}
+
 function setupEventListeners() {
   const modal = document.getElementById('lesson-modal');
   const form = document.getElementById('lesson-form');
@@ -1317,6 +1388,43 @@ function setupEventListeners() {
       renderSpecialNotesRow();
     }
   };
+  // Daily Assignments Grid Modal
+  const openAssessBtn = document.getElementById('open-assessments-grid-btn');
+  if (openAssessBtn) openAssessBtn.onclick = () => openAssessmentsGridModal();
+
+  const closeAssessModal = document.getElementById('close-assessments-modal');
+  if (closeAssessModal) {
+    closeAssessModal.onclick = () => {
+      const modal = document.getElementById('assessments-grid-modal');
+      if (modal) modal.classList.add('hidden');
+    };
+  }
+
+  const doneAssessModal = document.getElementById('done-assessments-modal');
+  if (doneAssessModal) {
+    doneAssessModal.onclick = () => {
+      const modal = document.getElementById('assessments-grid-modal');
+      if (modal) modal.classList.add('hidden');
+    };
+  }
+
+  const assessPrevBtn = document.getElementById('assess-prev-day-btn');
+  if (assessPrevBtn) assessPrevBtn.onclick = () => navigateAssessmentsGrid(-1);
+
+  const assessNextBtn = document.getElementById('assess-next-day-btn');
+  if (assessNextBtn) assessNextBtn.onclick = () => navigateAssessmentsGrid(1);
+
+  const assessTodayBtn = document.getElementById('assess-today-btn');
+  if (assessTodayBtn) {
+    assessTodayBtn.onclick = () => {
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      currentAssessGridDate = `${year}-${month}-${day}`;
+      renderAssessmentsGrid();
+    };
+  }
 }
 
 function showConfirmModal(title, message, onConfirm) {

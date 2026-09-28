@@ -9,6 +9,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.6] - 2026-09-28
+
+### Fixed
+- **Daily Assignments Date Filtering**: Corrected the default date value so the grid shows lessons scheduled for the current local day.
+- **Assessment Display**: Fixed assessment text rendering in the Daily Assignments grid.
+
+### Improved
+- **Projector Readability**: Expanded the Daily Assignments modal and enlarged assessment, lesson, class, grade, and date text for classroom projection.
+- Kept the desktop grid to two columns to provide more room for assessment text.
+
+## [2.1.5] - 2026-09-27
+
+### Added
+- **Dynamic Footer Version Display**: Added a discreet page footer displaying the application version (`#app-version`) at the bottom of the layout.
+- **Automated Release Tag Sync**: Integrated `loadAppVersion()` in `app.js` to automatically fetch and display the latest Git release tag directly from the GitHub API on page load, falling back gracefully to an internal constant when offline.
+
+## [2.1.4] - 2026-09-27
+
+### Added
+- **Calendar Respects Custom Lesson Order**: Same-time-slot lessons now render on the calendar in the order set via the reorder panel, instead of alphabetically.
+- **Drag-to-Reorder on Calendar**: Lessons can be dragged directly within the calendar view. Dragging a lesson left/right among other lessons in the same time slot inserts it at the dropped position based on mouse release location, while dragging to a different day/time still moves it as before.
+- **Drop Position Indicator**: A live vertical indicator bar now tracks the pointer during a same-time-slot drag, snapping to the exact gap where the lesson will be inserted.
+
+### Fixed
+- **Modal Out of Sync After Calendar Drag**: Dragging a lesson between time slots on the calendar now refreshes the open edit modal's lesson counter and same-time reorder panel.
+- **Reorder Race Condition Causing Reverted Changes**: Fixed a bug where dragging lessons in quick succession could save out of order. All lesson reorder saves are now queued and processed sequentially.
+- **Calendar Drag Could Silently Fail to Save**: Hardened the calendar drag handler so date/time moves and modal refreshes always complete reliably.
+
+## [2.1.3] - 2026-09-27
+
+### Added
+- **Interactive Grade Color Palette**: Restored interactive color swatch picker buttons (`renderGradeColorPalette`) for 6th Grade, 7th Grade, 8th Grade, 7A, Algebra, and 678 Combined in the lesson plan editor.
+- **Global Scope Event Bindings**: Explicitly attached color selection functions (`window.selectGradeColor`, `window.updateGradeColorLabel`, `window.renderGradeColorPalette`) to the global `window` object for seamless inline HTML event execution.
+
+### Fixed
+- **Real-Time Color Label Sync**: Ensured the "Color Tag:" text and color indicator dynamically update in real time when swatches are clicked or custom grade names are typed.
+
 ## [2.1.2] - 2026-09-24
 
 ### Added
@@ -49,7 +86,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Daily Assessments & Checks Grid**:
-  - Added a **📊 Daily Assessments** button in the left sidebar column below the flag widget.
+  - Added a **📊 Daily Assignments** button in the left sidebar column below the flag widget.
   - Modal view displaying all scheduled assessments for a given date grouped cleanly by **Subject**.
   - Integrated date navigation with on-screen buttons (`Prev`, `Today`, `Next`) and keyboard `ArrowLeft` / `ArrowRight` shortcuts.
   - Automatically filters out subjects or lessons without active assessments for a streamlined view formatted for paper planners.
@@ -74,14 +111,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.6.0] - 2026-09-17
 
 ### Added
-
 - **Modal Lesson Navigation**: Added `← Prev` and `Next →` navigation buttons and a position counter (`Lesson X of Y`) to cycle through saved lessons directly inside the modal editor.
 - **Keyboard Arrow Navigation**: Supported `ArrowLeft` and `ArrowRight` hotkeys to switch lessons instantly in 0ms, with smart input detection to avoid triggers while typing.
 
 ### Fixed
-
-- **Date Sorting & Selection Resilience**: Fixed date string parsing in `getSortedLessons()` to prevent `TypeError` crashes during event selection [2].
-- **Form Listener Null Safety**: Added null-guards in `setupEventListeners()` to ensure smooth startup across HTML versions [56–59].
+- **Date Sorting & Selection Resilience**: Fixed date string parsing in `getSortedLessons()` to prevent `TypeError` crashes during event selection.
+- **Form Listener Null Safety**: Added null-guards in `setupEventListeners()` to ensure smooth startup across HTML versions.
 
 ## [1.5.0] - 2026-09-13
 
@@ -145,11 +180,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.4] - 2026-09-10
 
 ### Added
-
 - **Materials Field**: Added a dedicated Materials field (`#lesson-materials`) to the lesson plan editor modal in `index.html` to capture required classroom supplies.
 
 ### Fixed
-
 - **Materials Persistence**: Updated `app.js` payload handling and `openModalForEdit` form population to save and load the materials field properly alongside Google Sheets header synchronization.
 
 ## [1.0.3] - 2026-09-10
