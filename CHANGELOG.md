@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.7] - 2026-09-28
+
+### Fixed
+- **Calendar Drag Date Persistence**: Moving a lesson to another day now updates its date and saves the change immediately on drop.
+
 ## [2.1.6] - 2026-09-28
 
 ### Fixed

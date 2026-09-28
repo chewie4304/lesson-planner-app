@@ -212,6 +212,9 @@ function initCalendar() {
       handleCalendarEventDragStart(info);
     },
     eventDragStop: function (info) {
+      teardownCalendarDragIndicator();
+    },
+    eventDrop: function (info) {
       handleCalendarEventDragStop(info);
     }
   });
