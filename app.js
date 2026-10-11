@@ -1866,7 +1866,7 @@ function renderSpecialNotesRow() {
           title="Click to manage notes for ${dateStr}">
         <div class="flex flex-wrap gap-1 items-center justify-center min-h-[28px]">
           ${notes.length > 0
-        ? notes.map(n => `<span class="px-1.5 py-0.5 bg-amber-100 text-amber-800 border border-amber-300 rounded font-semibold text-[11px] shadow-sm">\${escapeHtml(n)}</span>`).join('')
+        ? notes.map(n => `<span class="px-1.5 py-0.5 bg-amber-100 text-amber-800 border border-amber-300 rounded font-semibold text-[11px] shadow-sm">${escapeHtml(n)}</span>`).join('')
         : `<span class="text-slate-300 group-hover:text-indigo-600 text-[11px] font-normal">+ Add note</span>`
       }
         </div>

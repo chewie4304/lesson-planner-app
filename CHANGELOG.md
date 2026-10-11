@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.8] - 2026-10-11
+
+### Fixed
+- **Notes Character Escaping**: Fixed an errant backslash escape character in daily special notes rendering to ensure notes display cleanly without stray slashes.
+
 ## [2.1.7] - 2026-09-28
 
 ### Fixed
