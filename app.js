@@ -179,7 +179,7 @@ function initCalendar() {
     allDayText: 'All-day',
     slotDuration: '00:15:00',
     slotLabelInterval: '01:00:00',
-    slotEventOverlap: true,
+    slotEventOverlap: false,
     eventOverlap: true,
     headerToolbar: {
       left: 'prev,next today',

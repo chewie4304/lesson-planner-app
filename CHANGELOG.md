@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.10] - 2026-10-18
+
+### Fixed
+- **Calendar Text Wrapping**: Lessons in the same timeslot now display side by side instead of overlapping, so each lesson's text wraps within its own visible box rather than running behind the next lesson.
+
 ## [2.1.9] - 2026-10-18
 
 ### Fixed
