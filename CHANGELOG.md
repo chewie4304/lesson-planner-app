@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.9] - 2026-10-18
+
+### Fixed
+- **Same-Timeslot Reordering on Calendar**: Dragging a lesson left/right among lessons in the same timeslot now reorders them and saves the new order. Previously only moves to a different date/time were handled, and the drop position was ignored.
+
+### Added
+- **Classroom Summary**: New button below the Learning Objectives in the lesson modal that generates a copy-ready text block (title, objectives, and numbered procedure steps) for pasting into the Google Classroom stream. The text is copied to the clipboard automatically and shown in a box for manual copying if needed.
+
 ## [2.1.8] - 2026-10-11
 
 ### Fixed

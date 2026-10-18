@@ -212,7 +212,7 @@ function initCalendar() {
       handleCalendarEventDragStart(info);
     },
     eventDragStop: function (info) {
-      teardownCalendarDragIndicator();
+      handleCalendarEventDragRelease(info);
     },
     eventDrop: function (info) {
       handleCalendarEventDragStop(info);
@@ -295,10 +295,16 @@ function handleCalendarEventDragStart(info) {
   if (!lesson) { calendarDragOriginalOrder = null; return; }
   const date = lesson.date ? String(lesson.date).split('T').at(0) : '';
   const time = formatTimeForInput(lesson.startTime) || '00:00';
-  const ids = getSameSlotIds(date, time).sort((a, b) => {
-    const la = lessonsData.find(l => String(l.id) === a);
-    const lb = lessonsData.find(l => String(l.id) === b);
-    return getLessonSortOrder(la) - getLessonSortOrder(lb);
+  const movedId = String(info.event.id);
+  const lefts = new Map();
+  getSameSlotIds(date, time).forEach(id => {
+    const el = id === movedId && info.el ? info.el : document.querySelector(`.fc-event[data-lesson-id="${CSS.escape(id)}"]`);
+    lefts.set(id, el ? el.getBoundingClientRect().left : null);
+  });
+  // Visible left-to-right order, since lessons with equal sortOrder are laid out by FullCalendar's own tiebreak.
+  const ids = [...lefts.keys()].sort((a, b) => {
+    if (lefts.get(a) !== null && lefts.get(b) !== null && lefts.get(a) !== lefts.get(b)) return lefts.get(a) - lefts.get(b);
+    return getLessonSortOrder(lessonsData.find(l => String(l.id) === a)) - getLessonSortOrder(lessonsData.find(l => String(l.id) === b));
   });
   calendarDragOriginalOrder = { date, time, ids };
 
@@ -371,13 +377,44 @@ function teardownCalendarDragIndicator() {
 // Extracts the drop details synchronously (FullCalendar's info.event may become
 // stale once other queued moves rebuild the calendar) and queues the actual
 // reorder/save so overlapping drags can't race and clobber each other's writes.
+let calendarPendingRelease = null;
+
+// eventDragStop always fires (with the pointer position) but eventDrop only fires when the
+// date/time changed, so a same-slot reorder is applied here if no eventDrop follows.
+function handleCalendarEventDragRelease(info) {
+  teardownCalendarDragIndicator();
+
+  const dropX = info.jsEvent && typeof info.jsEvent.clientX === 'number'
+    ? info.jsEvent.clientX
+    : (info.jsEvent && info.jsEvent.changedTouches && info.jsEvent.changedTouches[0] ? info.jsEvent.changedTouches[0].clientX : null);
+  const release = { movedId: String(info.event.id), dropX, dropped: false };
+  calendarPendingRelease = release;
+
+  setTimeout(() => {
+    if (calendarPendingRelease === release) calendarPendingRelease = null;
+    const priorOrder = calendarDragOriginalOrder;
+    if (release.dropped || !priorOrder) return;
+    calendarDragOriginalOrder = null;
+    enqueueLessonMutation(() => applyCalendarEventMove({
+      movedId: release.movedId,
+      newDate: priorOrder.date,
+      newStartTime: priorOrder.time,
+      newEndTime: formatTimeForInput((lessonsData.find(l => String(l.id) === release.movedId) || {}).endTime),
+      dropX: release.dropX,
+      priorOrder
+    }));
+  }, 0);
+}
+
 function handleCalendarEventDragStop(info) {
   teardownCalendarDragIndicator();
 
   const movedId = String(info.event.id);
-  const dropX = info.jsEvent && typeof info.jsEvent.clientX === 'number'
-    ? info.jsEvent.clientX
-    : (info.jsEvent && info.jsEvent.changedTouches && info.jsEvent.changedTouches[0] ? info.jsEvent.changedTouches[0].clientX : null);
+  let dropX = null;
+  if (calendarPendingRelease && calendarPendingRelease.movedId === movedId) {
+    calendarPendingRelease.dropped = true;
+    dropX = calendarPendingRelease.dropX;
+  }
   const newDate = info.event.startStr.split('T').at(0);
   const newStartTime = formatTimeForInput(info.event.startStr.split('T').at(1));
   const newEndTime = formatTimeForInput(info.event.endStr ? info.event.endStr.split('T').at(1) : '') || newStartTime;
@@ -868,6 +905,36 @@ function renderObjectivesBadges() {
   }
 }
 
+async function generateClassroomSummary() {
+  commitPendingInputs();
+  const title = document.getElementById('lesson-title').value.trim();
+  const lines = [];
+  if (title) lines.push(title, '');
+  if (currentObjectives.length) {
+    lines.push('Objectives:');
+    currentObjectives.forEach(o => lines.push(`- ${o}`));
+    lines.push('');
+  }
+  lines.push('Steps:');
+  if (currentProcedure.length === 0) lines.push('(No steps added)');
+  currentProcedure.forEach((s, i) => lines.push(`${i + 1}. ${s.text}`));
+
+  const text = lines.join('\n');
+  const box = document.getElementById('classroom-summary-box');
+  const area = document.getElementById('classroom-summary-text');
+  const status = document.getElementById('classroom-summary-status');
+  area.value = text;
+  box.classList.remove('hidden');
+  try {
+    await navigator.clipboard.writeText(text);
+    status.innerText = 'Copied to clipboard.';
+  } catch (err) {
+    area.select();
+    status.innerText = 'Select and copy the text above.';
+  }
+}
+window.generateClassroomSummary = generateClassroomSummary;
+
 function removeObjectiveItem(idx) {
   currentObjectives.splice(idx, 1);
   renderObjectivesBadges();
@@ -1214,6 +1281,7 @@ function openModalForNewPlan(startIso, endIso, isAllDay = false) {
   }
 
   document.getElementById('modal-title').innerText = 'New Lesson Plan';
+  document.getElementById('classroom-summary-box').classList.add('hidden');
   document.getElementById('lesson-form').reset();
   document.getElementById('lesson-id').value = 'lp_' + Date.now();
   document.getElementById('lesson-date').value = dateStr;
@@ -1255,6 +1323,7 @@ function openModalForNewPlan(startIso, endIso, isAllDay = false) {
 
 function openModalForEdit(lesson) {
   document.getElementById('modal-title').innerText = 'Edit Lesson Plan';
+  document.getElementById('classroom-summary-box').classList.add('hidden');
 
   let dateStr = '';
   if (lesson.date) {
