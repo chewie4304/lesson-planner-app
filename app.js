@@ -1433,11 +1433,13 @@ function renderAssessmentsGrid() {
     const assessList = parseListField(lesson.assessment);
     if (assessList.length === 0) return;
 
+    const gradeColor = getGradeColor(lesson.grade);
+
     html += `
       <div class="p-5 md:p-6 bg-slate-50 border border-slate-200 rounded-lg shadow-sm">
         <div class="flex items-center justify-between mb-2 pb-1 border-b border-slate-200">
           <span class="min-w-0 pr-2 font-bold text-slate-800 text-xl md:text-2xl">${escapeHtml(lesson.subject || 'General')}</span>
-          <span class="shrink-0 text-base md:text-lg font-semibold text-slate-600 bg-white px-2 py-0.5 rounded border border-slate-200">${escapeHtml(lesson.grade || '')}</span>
+          <span class="shrink-0 text-base md:text-lg font-semibold text-white px-2 py-0.5 rounded border" style="background-color: ${gradeColor.bg}; border-color: ${gradeColor.border};">${escapeHtml(lesson.grade || '')}</span>
         </div>
         <div class="text-lg md:text-xl font-semibold text-indigo-700 mb-3">${escapeHtml(lesson.title || 'Untitled')}</div>
         <ul class="list-disc list-inside text-lg md:text-2xl text-slate-700 space-y-2">

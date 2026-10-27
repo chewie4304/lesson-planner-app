@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.11] - 2026-10-27
+
+### Improved
+- **Daily Assignments Grid Layout**: Expanded the grid to three columns on desktop so all of a day's assignments typically fit without scrolling.
+- **Grade Color-Coding in Assignments Grid**: The grade/student badge on each Daily Assignments card now uses the same color as the lesson's events on the calendar.
+- **Larger Assignments Window**: Enlarged the Daily Assignments modal to nearly fill the screen (99vw × 98vh) to further reduce scrolling.
+
 ## [2.1.10] - 2026-10-18
 
 ### Fixed
